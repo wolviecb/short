@@ -2,9 +2,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"math/rand"
 	"net/url"
+	"os"
 	"regexp"
 	"time"
 
@@ -17,6 +19,9 @@ const (
 	letterIdxBits = 6                    // 6 bits to represent a letter index
 	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
+)
+const (
+	appVersion = "0.0.1"
 )
 
 var domain string
@@ -140,7 +145,13 @@ func main() {
 	flag.StringVar(&domain, "domain", "localhost", "Domain to write to the URLs")
 	flag.StringVar(&redisServer, "redis", "localhost:6379", "ip/hostname of the redis server to connect")
 	flag.StringVar(&listenAddr, "addr", "localhost:8080", "Address to listen for connections")
+	version := flag.Bool("v", false, "prints current roxy version")
 	flag.Parse()
+	if *version {
+		fmt.Printf("%s", appVersion)
+		os.Exit(0)
+	}
+
 	web.Post("/", shortner)
 	web.Get("/(.*)", redirect)
 	log.Printf("Domain: %s, Redis: %s\n", domain, redisServer)
