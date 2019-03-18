@@ -1,0 +1,17 @@
+build:
+  stage: build
+  script:
+    - docker build -t short-build .
+test:
+  stage: test
+  script:
+    - docker run short-build -v
+    - docker tag short-build tandrade/short:latest
+deploy:
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD"
+  stage: deploy
+  script:
+    - docker push tandrade/short:latest
+  only:
+    - master
