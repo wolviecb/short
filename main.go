@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"net"
 	"net/url"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
@@ -27,6 +29,8 @@ const (
 var domain string
 var redisServer string
 var listenAddr string
+var proto string
+var path string
 var src = rand.NewSource(time.Now().UnixNano())
 var pool = newPool()
 
@@ -84,6 +88,9 @@ func set(c redis.Conn, url, suffix string) error {
 }
 
 func redirect(ctx *web.Context, val string) {
+	if path != "" {
+		val = strings.Replace(val, path, "", 1)
+	}
 	r, _ := regexp.Compile("[a-zA-Z0-9]+")
 	key := r.FindString(val)
 	conn := pool.Get()
@@ -97,13 +104,12 @@ func redirect(ctx *web.Context, val string) {
 }
 
 func shortner(ctx *web.Context) {
-	// return fmt.Sprintf("%v\n", ctx.Params)
+	_, port, _ := net.SplitHostPort(listenAddr)
 	u, err := url.ParseRequestURI(ctx.Params["url"])
 	if err != nil {
 		ctx.Abort(400, "Bad URL")
 	} else {
 		suffix := RandStringBytesMaskImprSrc(10)
-		// nURL := "https://" + domain + "/" + suffix
 		conn := pool.Get()
 		defer conn.Close()
 		for {
@@ -114,11 +120,16 @@ func shortner(ctx *web.Context) {
 				break
 			}
 		}
+		if port != "80" && proto == "http" {
+			port = ":" + port + "/"
+		} else if port != "443" && proto == "https" {
+			port = ":" + port + "/"
+		}
 		err := set(conn, u.String(), suffix)
 		if err != nil {
 			ctx.Abort(500, "Internal Error")
 		} else {
-			ctx.WriteString("URL shortened at: https://" + domain + "/" + suffix)
+			ctx.WriteString("URL shortened at: " + proto + "://" + domain + port + path + suffix + "\n")
 		}
 	}
 }
@@ -145,11 +156,17 @@ func main() {
 	flag.StringVar(&domain, "domain", "localhost", "Domain to write to the URLs")
 	flag.StringVar(&redisServer, "redis", "localhost:6379", "ip/hostname of the redis server to connect")
 	flag.StringVar(&listenAddr, "addr", "localhost:8080", "Address to listen for connections")
-	version := flag.Bool("v", false, "prints current roxy version")
+	flag.StringVar(&path, "path", "", "Path to the base URL (https://localhost/PATH/... remember to append a / at the end")
+	flag.StringVar(&proto, "proto", "https", "proto to the base URL (HTTPS://localhost/path/... no real https here just to set the url (for like a proxy offloading https")
+	version := flag.Bool("v", false, "prints current version")
 	flag.Parse()
 	if *version {
 		fmt.Printf("%s", appVersion)
 		os.Exit(0)
+	}
+
+	if path != "" && !strings.HasSuffix(path, "/") {
+		path = path + "/"
 	}
 
 	web.Post("/", shortner)
