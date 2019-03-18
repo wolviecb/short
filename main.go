@@ -124,6 +124,8 @@ func shortner(ctx *web.Context) {
 			port = ":" + port + "/"
 		} else if port != "443" && proto == "https" {
 			port = ":" + port + "/"
+		} else if port == "443" || port == "80" {
+			port = "/"
 		}
 		err := set(conn, u.String(), suffix)
 		if err != nil {
