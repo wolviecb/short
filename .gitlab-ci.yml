@@ -1,3 +1,11 @@
+stages:
+  - build
+  - test
+  - deploy
+  - release
+
+variables:
+  DOCKER_TAG: $CI_COMMIT_TAG
 build:
   stage: build
   script:
@@ -15,3 +23,12 @@ deploy:
     - docker push tandrade/short:latest
   only:
     - master
+release:
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD"
+  stage: release
+  script:
+    - docker tag short-build tandrade/short:$DOCKER_TAG
+    - docker push tandrade/short:$DOCKER_TAG
+  only:
+    - tags
