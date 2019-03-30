@@ -32,5 +32,3 @@ To shorten a URL just post on /, you will get a reply with the shortened URL
 curl -X POST -d "url=http://google.com" http://localhost:8080/
 URL shortened at: https://localhost:8080/9mbIcOwsVP
 ```
-
-Try it at https://thebarrens.nu/short/
