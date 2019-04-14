@@ -26,6 +26,59 @@ const (
 	appVersion = "0.0.1"
 )
 
+const indexPage = `
+<!DOCTYPE html>
+<html lang=en>
+  <head>
+    <title>Short: the simple url shortener</title>
+    <style>
+    form{
+			position:fixed;
+			top:30%;
+			left:40%;
+			width:500px;
+			font-family:georgia,garamond,serif;
+			font-size:16px;
+
+		}
+    </style>
+  </head>
+<body>
+  <form action="/" method="POST">
+			<label for="url">
+			Please type the url</label>
+				<br>
+        <input id="url" type="text" name="url"/>
+				<input type="submit" name="Submit" value="Submit"/>
+  </form>
+</body>
+</html>
+`
+
+const returnPage = `
+<!DOCTYPE html>
+<html lang=en>
+  <head>
+    <title>Short: the simple url shortner</title>
+    <style>
+    .center {
+			padding: 70px 0;
+			border: none;
+			border-color: transparent;
+			text-align: center;
+			font-family:georgia,garamond,serif;
+			font-size:16px;
+		}
+    </style>
+  </head>
+<body>
+	<div class="center">
+		URL Shortened to <a href="%s">%s</a>
+	</div>
+</body>
+</html>
+`
+
 var domain string
 var redisServer string
 var listenAddr string
@@ -34,6 +87,7 @@ var path string
 var src = rand.NewSource(time.Now().UnixNano())
 var pool = newPool()
 
+func index() string { return indexPage }
 func newPool() *redis.Pool {
 	return &redis.Pool{
 		// Maximum number of idle connections in the pool.
@@ -131,7 +185,9 @@ func shortner(ctx *web.Context) {
 		if err != nil {
 			ctx.Abort(500, "Internal Error")
 		} else {
-			ctx.WriteString("URL shortened at: " + proto + "://" + domain + port + path + suffix + "\n")
+			shortend := proto + "://" + domain + port + path + suffix
+			output := fmt.Sprintf(returnPage, shortend, shortend)
+			ctx.WriteString(output)
 		}
 	}
 }
@@ -171,6 +227,7 @@ func main() {
 		path = path + "/"
 	}
 
+	web.Get("/", index)
 	web.Post("/", shortner)
 	web.Get("/(.*)", redirect)
 	log.Printf("Domain: %s, Redis: %s\n", domain, redisServer)
