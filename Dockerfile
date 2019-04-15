@@ -1,8 +1,8 @@
-FROM golang:1.12.1 as builder
+FROM golang:1.12.4 as builder
 
 ENV CGO_ENABLED=0
 
-ADD . /go/src/short
+ADD main.go /go/src/short/
 
 WORKDIR /go/src/short
 
