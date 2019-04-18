@@ -3,8 +3,8 @@ Short - simple go url shortner
 
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://git.thebarrens.nu/wolvie/short/blob/master/LICENSE)
 [![Build Status](https://git.thebarrens.nu/wolvie/short/badges/master/build.svg)](https://git.thebarrens.nu/wolvie/short/)
+Short is a very simple url shortener build in golang using web.go module for storring URLs, the main focus is speed, not data is persisted.
 
-Short is a very simple url shortener build in golang using web.go module and redis (redigo) for storring URLs
 
 Syntax is:
 
