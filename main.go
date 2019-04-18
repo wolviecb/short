@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gomodule/redigo/redis"
 	"github.com/hoisie/web"
+	"github.com/patrickmn/go-cache"
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" // Base strings for RandStringBytesMaskImprSrc
@@ -23,7 +23,7 @@ const (
 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
 )
 const (
-	appVersion = "0.0.3"
+	appVersion = "0.1.0"
 )
 
 const indexPage = `
@@ -85,60 +85,22 @@ var listenAddr string
 var proto string
 var path string
 var src = rand.NewSource(time.Now().UnixNano())
-var pool = newPool()
+var pool = cache.New(240*time.Hour, 1*time.Hour)
 
 func index() string { return indexPage }
-func newPool() *redis.Pool {
-	return &redis.Pool{
-		// Maximum number of idle connections in the pool.
-		MaxIdle: 10,
-		// max number of connections
-		MaxActive: 1200,
-		// Dial is an application supplied function for creating and
-		// configuring a connection.
-		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", redisServer)
-			if err != nil {
-				panic(err.Error())
-			}
-			return c, err
-		},
-	}
-}
 
-// ping tests connectivity for redis (PONG should be returned)
-func ping(c redis.Conn) error {
-	// Send PING command to Redis
-	// PING command returns a Redis "Simple String"
-	// Use redis.String to convert the interface type to string
-	_, err := redis.String(c.Do("PING"))
-	if err != nil {
-		return err
+// get executes the  GET command
+func get(key string) (string, bool) {
+	value, status := pool.Get(key)
+	if status {
+		return value.(string), status
 	}
-	// fmt.Printf("PING Response = %s\n", s)
-	// Output: PONG
-	return nil
-}
-
-// get executes the redis GET command
-func get(c redis.Conn, key string) (bool, string) {
-	s, err := redis.String(c.Do("GET", key))
-	if err == redis.ErrNil {
-		return false, ""
-	} else if err != nil {
-		return false, ""
-	} else {
-		return true, s
-	}
+	return "", false
 }
 
 // set executes the redis SET command
-func set(c redis.Conn, url, suffix string) error {
-	_, err := c.Do("SET", suffix, url)
-	if err != nil {
-		return err
-	}
-	return nil
+func set(url, suffix string) {
+	pool.Set(suffix, url, 0)
 }
 
 func redirect(ctx *web.Context, val string) {
@@ -147,9 +109,8 @@ func redirect(ctx *web.Context, val string) {
 	}
 	r, _ := regexp.Compile("[a-zA-Z0-9]+")
 	key := r.FindString(val)
-	conn := pool.Get()
-	defer conn.Close()
-	status, url := get(conn, key)
+	url, status := get(key)
+	fmt.Println(url)
 	if status {
 		ctx.Redirect(302, url)
 	} else {
@@ -164,10 +125,8 @@ func shortner(ctx *web.Context) {
 		ctx.Abort(400, "Bad URL")
 	} else {
 		suffix := RandStringBytesMaskImprSrc(10)
-		conn := pool.Get()
-		defer conn.Close()
 		for {
-			status, _ := get(conn, suffix)
+			_, status := get(suffix)
 			if status {
 				suffix = RandStringBytesMaskImprSrc(10)
 			} else {
@@ -181,14 +140,10 @@ func shortner(ctx *web.Context) {
 		} else if port == "443" || port == "80" {
 			port = "/"
 		}
-		err := set(conn, u.String(), suffix)
-		if err != nil {
-			ctx.Abort(500, "Internal Error")
-		} else {
-			shortend := proto + "://" + domain + port + path + suffix
-			output := fmt.Sprintf(returnPage, shortend, shortend)
-			ctx.WriteString(output)
-		}
+		set(u.String(), suffix)
+		shortend := proto + "://" + domain + port + path + suffix
+		output := fmt.Sprintf(returnPage, shortend, shortend)
+		ctx.WriteString(output)
 	}
 }
 
@@ -212,7 +167,6 @@ func RandStringBytesMaskImprSrc(n int) string {
 
 func main() {
 	flag.StringVar(&domain, "domain", "localhost", "Domain to write to the URLs")
-	flag.StringVar(&redisServer, "redis", "localhost:6379", "ip/hostname of the redis server to connect")
 	flag.StringVar(&listenAddr, "addr", "localhost:8080", "Address to listen for connections")
 	flag.StringVar(&path, "path", "", "Path to the base URL (https://localhost/PATH/... remember to append a / at the end")
 	flag.StringVar(&proto, "proto", "https", "proto to the base URL (HTTPS://localhost/path/... no real https here just to set the url (for like a proxy offloading https")
@@ -230,6 +184,6 @@ func main() {
 	web.Get("/", index)
 	web.Post("/", shortner)
 	web.Get("/(.*)", redirect)
-	log.Printf("Domain: %s, Redis: %s\n", domain, redisServer)
+	log.Printf("Domain: %s, URL Proto: %s\n", domain, proto)
 	web.Run(listenAddr)
 }
