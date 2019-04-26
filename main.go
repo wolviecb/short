@@ -1,14 +1,17 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -86,6 +89,7 @@ var addr string
 var port string
 var proto string
 var path string
+var dumpFile string
 var src = rand.NewSource(time.Now().UnixNano())
 var pool = cache.New(240*time.Hour, 1*time.Hour)
 
@@ -172,11 +176,85 @@ func RandStringBytesMaskImprSrc(n int) string {
 	return string(b)
 }
 
+func itemsCount(w http.ResponseWriter, r *http.Request) {
+	w.Write(
+		[]byte(
+			strconv.Itoa(
+				pool.ItemCount(),
+			),
+		),
+	)
+}
+
+func itemsDump(w http.ResponseWriter, r *http.Request) {
+	dumpObj, err := json.Marshal(
+		pool.Items(),
+	)
+	if err != nil {
+		log.Fatal("BOOM")
+	}
+	w.Write(
+		[]byte(dumpObj),
+	)
+}
+
+func itemsFromFile(w http.ResponseWriter, r *http.Request) {
+	jsonFile, err := ioutil.ReadFile(dumpFile)
+	var dumpObj map[string]cache.Item
+	json.Unmarshal([]byte(jsonFile), &dumpObj)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(
+			[]byte("Cannot open file " + dumpFile),
+		)
+	} else {
+		pool = cache.NewFrom(240*time.Hour, 1*time.Hour, dumpObj)
+		w.Write(
+			[]byte("OK"),
+		)
+	}
+}
+
+func itemsFromPost(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var dumpObj map[string]cache.Item
+	err := decoder.Decode(&dumpObj)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(
+			[]byte("Cannot parse JSON"),
+		)
+	} else {
+		pool = cache.NewFrom(240*time.Hour, 1*time.Hour, dumpObj)
+		w.Write(
+			[]byte("OK"),
+		)
+	}
+}
+
+func itemsDumpToFile(w http.ResponseWriter, r *http.Request) {
+	dumpObj, _ := json.Marshal(
+		pool.Items(),
+	)
+	err := ioutil.WriteFile(dumpFile, dumpObj, 0644)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(
+			[]byte("Failed to open json file"),
+		)
+	} else {
+		w.Write([]byte("Dump writen to: " + dumpFile))
+	}
+}
+
 func main() {
 	flag.StringVar(&domain, "domain", "localhost", "Domain to write to the URLs")
 	flag.StringVar(&addr, "addr", "localhost", "Address to listen for connections")
 	flag.StringVar(&port, "port", "8080", "Port to listen for connections")
 	flag.StringVar(&path, "path", "", "Path to the base URL (https://localhost/PATH/... remember to append a / at the end")
+	flag.StringVar(&dumpFile, "dump", "urls.json", "Path to the file to dump the kv db")
 	flag.StringVar(&proto, "proto", "https", "proto to the base URL (HTTPS://localhost/path/... no real https here just to set the url (for like a proxy offloading https")
 	version := flag.Bool("v", false, "prints current version")
 	flag.Parse()
@@ -196,6 +274,11 @@ func main() {
 	r.HandleFunc("/", index).Methods("GET")
 	r.HandleFunc("/", shortner).Methods("POST")
 	r.HandleFunc("/{key}", redirect).Methods("GET")
+	r.HandleFunc("/v1/count", itemsCount).Methods("GET")
+	r.HandleFunc("/v1/dump", itemsDump).Methods("GET")
+	r.HandleFunc("/v1/dumpToFile", itemsDumpToFile).Methods("GET")
+	r.HandleFunc("/v1/fromFile", itemsFromFile).Methods("GET")
+	r.HandleFunc("/v1/fromPost", itemsFromPost).Methods("POST")
 	log.Printf("Domain: %s, URL Proto: %s\n", domain, proto)
 	log.Fatal(http.ListenAndServe(listenAddr, handlers.CombinedLoggingHandler(os.Stdout, r)))
 }
