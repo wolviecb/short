@@ -82,7 +82,8 @@ const returnPage = `
 
 var domain string
 var redisServer string
-var listenAddr string
+var addr string
+var port string
 var proto string
 var path string
 var src = rand.NewSource(time.Now().UnixNano())
@@ -138,15 +139,16 @@ func shortner(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
+		var hostSuf string
 		if port != "80" && proto == "http" {
-			port = ":" + port + "/"
+			hostSuf = ":" + port + "/"
 		} else if port != "443" && proto == "https" {
-			port = ":" + port + "/"
+			hostSuf = ":" + port + "/"
 		} else if port == "443" || port == "80" {
-			port = "/"
+			hostSuf = "/"
 		}
 		set(u.String(), suffix)
-		shortend := proto + "://" + domain + port + path + suffix
+		shortend := proto + "://" + domain + hostSuf + path + suffix
 		output := fmt.Sprintf(returnPage, shortend, shortend)
 		w.Write([]byte(output))
 	}
@@ -172,7 +174,8 @@ func RandStringBytesMaskImprSrc(n int) string {
 
 func main() {
 	flag.StringVar(&domain, "domain", "localhost", "Domain to write to the URLs")
-	flag.StringVar(&listenAddr, "addr", "localhost:8080", "Address to listen for connections")
+	flag.StringVar(&addr, "addr", "localhost", "Address to listen for connections")
+	flag.StringVar(&port, "port", "8080", "Port to listen for connections")
 	flag.StringVar(&path, "path", "", "Path to the base URL (https://localhost/PATH/... remember to append a / at the end")
 	flag.StringVar(&proto, "proto", "https", "proto to the base URL (HTTPS://localhost/path/... no real https here just to set the url (for like a proxy offloading https")
 	version := flag.Bool("v", false, "prints current version")
@@ -186,6 +189,7 @@ func main() {
 		path = path + "/"
 	}
 
+	listenAddr := addr + ":" + port
 
 	r := mux.NewRouter()
 
