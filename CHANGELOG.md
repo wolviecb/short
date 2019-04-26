@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
+## 2019-04-28 - 0.2.0
+
+### Added
+
+- Add enpoints to dump and restore the in memory db
+- Change listen addr/port flags
+- Change http handler to gorilla/mux
+
 ## 2019-04-14 - 0.1.0
 
 ### Added

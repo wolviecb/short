@@ -27,7 +27,7 @@ const (
 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
 )
 const (
-	appVersion = "0.1.0"
+	appVersion = "0.2.0"
 )
 
 const indexPage = `
