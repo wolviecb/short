@@ -60,7 +60,7 @@ $ curl http://localhost:8080/v1/dumpToFile
 Dump writen to: urls.json
 ```
 
-Load url mappings from `-dimp` file to in memory db
+Load url mappings from `-dump` file to in memory db
 
 ```shell
 $ curl http://localhost:8080/v1/fromFile
@@ -70,7 +70,7 @@ OK
 Load url mappings from POST data (Assuming json data on save.json file)
 
 ```shell
-$ curl -X POST http://localhost:8080/v1/fromPost \                                            ✔  0.59 L
+$ curl -X POST http://localhost:8080/v1/fromPost \
 -H "Content-Type: application/json" \
 --data $(cat save.json )
 OK
