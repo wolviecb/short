@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"regexp"
 	"strings"
 	"time"
 
-	"github.com/hoisie/web"
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 	"github.com/patrickmn/go-cache"
 )
 
@@ -87,7 +88,9 @@ var path string
 var src = rand.NewSource(time.Now().UnixNano())
 var pool = cache.New(240*time.Hour, 1*time.Hour)
 
-func index() string { return indexPage }
+func index(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte(indexPage))
+}
 
 // get executes the  GET command
 func get(key string) (string, bool) {
@@ -103,26 +106,28 @@ func set(url, suffix string) {
 	pool.Set(suffix, url, 0)
 }
 
-func redirect(ctx *web.Context, val string) {
+func redirect(w http.ResponseWriter, r *http.Request) {
+	vals := mux.Vars(r)
+	val := vals["key"]
 	if path != "" {
 		val = strings.Replace(val, path, "", 1)
 	}
-	r, _ := regexp.Compile("[a-zA-Z0-9]+")
-	key := r.FindString(val)
+	rgx, _ := regexp.Compile("[a-zA-Z0-9]+")
+	key := rgx.FindString(val)
 	url, status := get(key)
-	fmt.Println(url)
 	if status {
-		ctx.Redirect(302, url)
+		http.Redirect(w, r, url, http.StatusFound)
 	} else {
-		ctx.NotFound("URL don't exist")
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("URL don't exist"))
 	}
 }
 
-func shortner(ctx *web.Context) {
-	_, port, _ := net.SplitHostPort(listenAddr)
-	u, err := url.ParseRequestURI(ctx.Params["url"])
+func shortner(w http.ResponseWriter, r *http.Request) {
+	u, err := url.ParseRequestURI(r.FormValue("url"))
 	if err != nil {
-		ctx.Abort(400, "Bad URL")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Bad URL"))
 	} else {
 		suffix := RandStringBytesMaskImprSrc(10)
 		for {
@@ -143,7 +148,7 @@ func shortner(ctx *web.Context) {
 		set(u.String(), suffix)
 		shortend := proto + "://" + domain + port + path + suffix
 		output := fmt.Sprintf(returnPage, shortend, shortend)
-		ctx.WriteString(output)
+		w.Write([]byte(output))
 	}
 }
 
@@ -181,9 +186,12 @@ func main() {
 		path = path + "/"
 	}
 
-	web.Get("/", index)
-	web.Post("/", shortner)
-	web.Get("/(.*)", redirect)
+
+	r := mux.NewRouter()
+
+	r.HandleFunc("/", index).Methods("GET")
+	r.HandleFunc("/", shortner).Methods("POST")
+	r.HandleFunc("/{key}", redirect).Methods("GET")
 	log.Printf("Domain: %s, URL Proto: %s\n", domain, proto)
-	web.Run(listenAddr)
+	log.Fatal(http.ListenAndServe(listenAddr, handlers.CombinedLoggingHandler(os.Stdout, r)))
 }
