@@ -63,21 +63,22 @@ func get(key string) (string, bool) {
 }
 
 // set executes the redis SET command
-func set(url, suffix string) {
-	pool.Set(suffix, url, 0)
+func set(key, suffix string) {
+	pool.Set(suffix, key, 0)
 }
 
 func redirect(w http.ResponseWriter, r *http.Request) {
 	vals := mux.Vars(r)
-	val := vals["key"]
+	key := vals["key"]
 	if path != "" {
-		val = strings.Replace(val, path, "", 1)
+		key = strings.Replace(key, path, "", 1)
 	}
 	rgx, _ := regexp.Compile("[a-zA-Z0-9]+")
-	key := rgx.FindString(val)
-	url, status := get(key)
+	key = rgx.FindString(key)
+	key, status := get(key)
+	u, _ := url.Parse(key)
 	if status {
-		http.Redirect(w, r, url, http.StatusFound)
+		http.Redirect(w, r, u.String(), http.StatusFound)
 	} else {
 		w.WriteHeader(http.StatusNotFound)
 		notFoundTmpl.Execute(w, notFoundTmpl)
