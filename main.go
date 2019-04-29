@@ -76,8 +76,11 @@ func redirect(w http.ResponseWriter, r *http.Request) {
 	rgx, _ := regexp.Compile("[a-zA-Z0-9]+")
 	key = rgx.FindString(key)
 	key, status := get(key)
-	u, _ := url.Parse(key)
 	if status {
+	u, _ := url.Parse(key)
+		if u.Scheme == "" {
+			u.Scheme = "https"
+		}
 		http.Redirect(w, r, u.String(), http.StatusFound)
 	} else {
 		w.WriteHeader(http.StatusNotFound)
