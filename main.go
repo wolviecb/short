@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -15,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/asaskevich/govalidator"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/patrickmn/go-cache"
@@ -30,59 +32,6 @@ const (
 	appVersion = "0.2.0"
 )
 
-const indexPage = `
-<!DOCTYPE html>
-<html lang=en>
-  <head>
-    <title>Short: the simple url shortener</title>
-    <style>
-    form{
-			position:fixed;
-			top:30%;
-			left:40%;
-			width:500px;
-			font-family:georgia,garamond,serif;
-			font-size:16px;
-
-		}
-    </style>
-  </head>
-<body>
-  <form action="/" method="POST">
-			<label for="url">
-			Please type the url</label>
-				<br>
-        <input id="url" type="text" name="url"/>
-				<input type="submit" name="Submit" value="Submit"/>
-  </form>
-</body>
-</html>
-`
-
-const returnPage = `
-<!DOCTYPE html>
-<html lang=en>
-  <head>
-    <title>Short: the simple url shortner</title>
-    <style>
-    .center {
-			padding: 70px 0;
-			border: none;
-			border-color: transparent;
-			text-align: center;
-			font-family:georgia,garamond,serif;
-			font-size:16px;
-		}
-    </style>
-  </head>
-<body>
-	<div class="center">
-		URL Shortened to <a href="%s">%s</a>
-	</div>
-</body>
-</html>
-`
-
 var domain string
 var redisServer string
 var addr string
@@ -90,11 +39,18 @@ var port string
 var proto string
 var path string
 var dumpFile string
+var urlSize int
 var src = rand.NewSource(time.Now().UnixNano())
 var pool = cache.New(240*time.Hour, 1*time.Hour)
+var indexTmpl = template.Must(template.ParseFiles("templates/index.html"))
+var returnTmpl = template.Must(template.ParseFiles("templates/returnPage.html"))
+var notFoundTmpl = template.Must(template.ParseFiles("templates/404.html"))
+var badRequestTmpl = template.Must(template.ParseFiles("templates/400.html"))
+var internalErrorTmpl = template.Must(template.ParseFiles("templates/500.html"))
+var okTmpl = template.Must(template.ParseFiles("templates/ok.html"))
 
 func index(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(indexPage))
+	indexTmpl.Execute(w, indexTmpl)
 }
 
 // get executes the  GET command
@@ -124,21 +80,19 @@ func redirect(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, url, http.StatusFound)
 	} else {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("URL don't exist"))
+		notFoundTmpl.Execute(w, notFoundTmpl)
 	}
 }
 
 func shortner(w http.ResponseWriter, r *http.Request) {
-	u, err := url.ParseRequestURI(r.FormValue("url"))
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("Bad URL"))
-	} else {
-		suffix := RandStringBytesMaskImprSrc(10)
+	if govalidator.IsURL(r.FormValue("url")) {
+		u, _ := url.Parse(r.FormValue("url"))
+
+		suffix := RandStringBytesMaskImprSrc(urlSize)
 		for {
 			_, status := get(suffix)
 			if status {
-				suffix = RandStringBytesMaskImprSrc(10)
+				suffix = RandStringBytesMaskImprSrc(urlSize)
 			} else {
 				break
 			}
@@ -153,8 +107,11 @@ func shortner(w http.ResponseWriter, r *http.Request) {
 		}
 		set(u.String(), suffix)
 		shortend := proto + "://" + domain + hostSuf + path + suffix
-		output := fmt.Sprintf(returnPage, shortend, shortend)
-		w.Write([]byte(output))
+		returnTmpl.Execute(w, shortend)
+
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
+		badRequestTmpl.Execute(w, badRequestTmpl)
 	}
 }
 
@@ -205,14 +162,10 @@ func itemsFromFile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(
-			[]byte("Cannot open file " + dumpFile),
-		)
+		internalErrorTmpl.Execute(w, "Cannot open file "+dumpFile)
 	} else {
 		pool = cache.NewFrom(240*time.Hour, 1*time.Hour, dumpObj)
-		w.Write(
-			[]byte("OK"),
-		)
+		okTmpl.Execute(w, "Imported "+strconv.Itoa(len(dumpObj))+" items to the DB")
 	}
 }
 
@@ -223,14 +176,10 @@ func itemsFromPost(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(
-			[]byte("Cannot parse JSON"),
-		)
+		internalErrorTmpl.Execute(w, "Cannot parse JSON")
 	} else {
 		pool = cache.NewFrom(240*time.Hour, 1*time.Hour, dumpObj)
-		w.Write(
-			[]byte("OK"),
-		)
+		okTmpl.Execute(w, "Imported "+strconv.Itoa(len(dumpObj))+" items to the DB")
 	}
 }
 
@@ -241,21 +190,20 @@ func itemsDumpToFile(w http.ResponseWriter, r *http.Request) {
 	err := ioutil.WriteFile(dumpFile, dumpObj, 0644)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(
-			[]byte("Failed to open json file"),
-		)
+		internalErrorTmpl.Execute(w, "Failed to open json file")
 	} else {
-		w.Write([]byte("Dump writen to: " + dumpFile))
+		okTmpl.Execute(w, "Dump writen to: "+dumpFile)
 	}
 }
 
 func main() {
-	flag.StringVar(&domain, "domain", "localhost", "Domain to write to the URLs")
 	flag.StringVar(&addr, "addr", "localhost", "Address to listen for connections")
-	flag.StringVar(&port, "port", "8080", "Port to listen for connections")
-	flag.StringVar(&path, "path", "", "Path to the base URL (https://localhost/PATH/... remember to append a / at the end")
+	flag.StringVar(&domain, "domain", "localhost", "Domain to write to the URLs")
 	flag.StringVar(&dumpFile, "dump", "urls.json", "Path to the file to dump the kv db")
+	flag.StringVar(&path, "path", "", "Path to the base URL (https://localhost/PATH/... remember to append a / at the end")
+	flag.StringVar(&port, "port", "8080", "Port to listen for connections")
 	flag.StringVar(&proto, "proto", "https", "proto to the base URL (HTTPS://localhost/path/... no real https here just to set the url (for like a proxy offloading https")
+	flag.IntVar(&urlSize, "urlsize", 10, "Define the size of the shortened String, default 10")
 	version := flag.Bool("v", false, "prints current version")
 	flag.Parse()
 	if *version {

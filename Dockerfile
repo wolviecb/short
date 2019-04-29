@@ -13,5 +13,6 @@ FROM scratch
 LABEL  maintainer="Thomas Andrade <wolvie@gmail.com>"
 
 COPY --from=builder /go/src/short/short /
+COPY templates /templates
 
 ENTRYPOINT [ "/short" ]
