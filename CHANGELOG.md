@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
+## 2019-04-29 - 1.0.0
+
+### Added
+
+- Default to https for empty scheme URLs
+- Refactoring variables names/usage
+- Add html templates
+- Improved URL validation
+- Control flag for shortened URL size
+- README typos
+
 ## 2019-04-28 - 0.2.0
 
 ### Added

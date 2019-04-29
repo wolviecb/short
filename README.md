@@ -10,20 +10,20 @@ Short is a very simple url shortener build in golang using gorilla/mux for url r
 ```shell
 Usage of short:
   -addr string
-    Address to listen for connections (default "localhost")
+      Address to listen for connections (default "localhost")
   -domain string
-    Domain to write to the URLs (default "localhost")
+      Domain to write to the URLs (default "localhost")
   -dump string
-    Path to the file to dump the kv db (default "urls.json")
+      Path to the file to dump the kv db (default "urls.json")
   -path string
-    Path to the base URL (https://localhost:8080/PATH/... remember to append a / at the end
+      Path to the base URL (https://localhost/PATH/... remember to append a / at the end
   -port string
-    Port to listen for connections (default "8080")
+      Port to listen for connections (default "8080")
   -proto string
-    proto to the base URL (HTTPS://localhost:8080/path/... no real https here just to set the url (for like a proxy offloading https (default "https")
-  -v
-    prints current version
-
+      proto to the base URL (HTTPS://localhost/path/... no real https here just to set the url (for like a proxy offloading https (default "https")
+  -urlsize int
+      Define the size of the shortened String, default 10 (default 10)
+  -v  prints current version
 ```
 
 Includes a Dockerfile to for a standalone docker image.
@@ -35,9 +35,11 @@ curl -X POST -d "url=http://google.com" http://localhost:8080/
 URL shortened at: https://localhost:8080/9mbIcOwsVP
 ```
 
+URLs missing a Scheme (http[s]://) will be defaulted to https
+
 ## Dump/Restore endpoints
 
-URL mapping data can be checked, listed, dumped and restored in the given endpoints:
+URLs for mapping data can be checked, listed, dumped and restored in the given endpoints (you might want (and you should) restrict access to this e.g. reverse proxy):
 
 Show the number of mapped urls
 
@@ -75,3 +77,7 @@ $ curl -X POST http://localhost:8080/v1/fromPost \
 --data $(cat save.json )
 OK
 ```
+
+## HTML templates
+
+A simple collection of html templates are put on `templates` folder, the templates I've used are based on @jspark721 "UI 404 PAGE" on [freefrontend](https://codepen.io/juliepark/pen/erOoeZ)

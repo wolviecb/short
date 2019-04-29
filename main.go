@@ -29,7 +29,7 @@ const (
 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
 )
 const (
-	appVersion = "0.2.0"
+	appVersion = "1.0.0"
 )
 
 var domain string
@@ -77,7 +77,7 @@ func redirect(w http.ResponseWriter, r *http.Request) {
 	key = rgx.FindString(key)
 	key, status := get(key)
 	if status {
-	u, _ := url.Parse(key)
+		u, _ := url.Parse(key)
 		if u.Scheme == "" {
 			u.Scheme = "https"
 		}
