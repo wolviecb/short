@@ -29,18 +29,8 @@ const (
 	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
 )
-const (
-	appVersion = "1.0.0"
-)
+const appVersion = "1.0.0"
 
-var domain string
-var redisServer string
-var addr string
-var port string
-var proto string
-var path string
-var dumpFile string
-var urlSize int
 var src = rand.NewSource(time.Now().UnixNano())
 var pool = cache.New(240*time.Hour, 1*time.Hour)
 var indexTmpl = template.Must(template.ParseFiles("templates/index.html"))
@@ -68,7 +58,7 @@ func set(key, suffix string) {
 	pool.Set(suffix, key, 0)
 }
 
-func redirect(w http.ResponseWriter, r *http.Request) {
+func redirect(w http.ResponseWriter, r *http.Request, path string) {
 	vals := mux.Vars(r)
 	key := vals["key"]
 	if path != "" {
@@ -89,7 +79,7 @@ func redirect(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func shortner(w http.ResponseWriter, r *http.Request) {
+func shortner(w http.ResponseWriter, r *http.Request, proto, domain, hostSuf, path string, urlSize int) {
 	if govalidator.IsURL(r.FormValue("url")) {
 		u, _ := url.Parse(r.FormValue("url"))
 
@@ -152,7 +142,7 @@ func itemsDump(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-func itemsFromFile(w http.ResponseWriter, r *http.Request) {
+func itemsFromFile(w http.ResponseWriter, r *http.Request, dumpFile string) {
 	jsonFile, err := ioutil.ReadFile(dumpFile)
 	var dumpObj map[string]cache.Item
 	json.Unmarshal([]byte(jsonFile), &dumpObj)
@@ -180,7 +170,7 @@ func itemsFromPost(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func itemsDumpToFile(w http.ResponseWriter, r *http.Request) {
+func itemsDumpToFile(w http.ResponseWriter, r *http.Request, dumpFile string) {
 	dumpObj, _ := json.Marshal(
 		pool.Items(),
 	)
@@ -194,55 +184,69 @@ func itemsDumpToFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	flag.StringVar(&addr, "addr", "localhost", "Address to listen for connections")
-	flag.StringVar(&domain, "domain", "localhost", "Domain to write to the URLs")
-	flag.StringVar(&dumpFile, "dump", "urls.json", "Path to the file to dump the kv db")
-	flag.StringVar(&path, "path", "", "Path to the base URL (https://localhost/PATH/... remember to append a / at the end")
-	flag.IntVar(&port, "port", 8080, "Port to listen for connections")
-	flag.StringVar(&proto, "proto", "https", "proto to the base URL (HTTPS://localhost/path/... no real https here just to set the url (for like a proxy offloading https")
-	flag.IntVar(&urlSize, "urlsize", 10, "Define the size of the shortened String, default 10")
+	var hostSuf string
+	var listenAddr string
+
+	addr := flag.String("addr", "localhost", "Address to listen for connections")
+	domain := flag.String("domain", "localhost", "Domain to write to the URLs")
+	dumpFile := flag.String("dump", "urls.json", "Path to the file to dump the kv db")
+	path := flag.String("path", "", "Path to the base URL (https://localhost/PATH/... remember to append a / at the end")
+	port := flag.Int("port", 8080, "Port to listen for connections")
+	proto := flag.String("proto", "https", "proto to the base URL (HTTPS://localhost/path/... no real https here just to set the url (for like a proxy offloading https")
+	urlSize := flag.Int("urlsize", 10, "Define the size of the shortened String, default 10")
 	version := flag.Bool("v", false, "prints current version")
 	flag.Parse()
 	if *version {
-		fmt.Printf("%s", appVersion)
+		fmt.Println(appVersion)
 		os.Exit(0)
 	}
 
-	if port > 65535 || port < 1 {
+	if *port > 65535 || *port < 1 {
 
 	}
-	if port != 80 && proto == "http" {
-		hostSuf = ":" + strconv.Itoa(port) + "/"
-	} else if port != 443 && proto == "https" {
-		hostSuf = ":" + strconv.Itoa(port) + "/"
-	} else if port == 443 || port == 80 {
+	if *path != "" && !strings.HasSuffix(*path, "/") {
+		*path = *path + "/"
+	}
+	if *port != 80 && *proto == "http" {
+		hostSuf = ":" + strconv.Itoa(*port) + "/"
+	} else if *port != 443 && *proto == "https" {
+		hostSuf = ":" + strconv.Itoa(*port) + "/"
+	} else if *port == 443 || *port == 80 {
 		hostSuf = "/"
 	}
-	ip := net.ParseIP(addr)
+	ip := net.ParseIP(*addr)
 	if ip != nil {
-		listenAddr = ip.String() + ":" + strconv.Itoa(port)
+		listenAddr = ip.String() + ":" + strconv.Itoa(*port)
 	} else {
-		if govalidator.IsDNSName(addr) {
-			listenAddr = addr + ":" + strconv.Itoa(port)
+		if govalidator.IsDNSName(*addr) {
+			listenAddr = *addr + ":" + strconv.Itoa(*port)
 		} else {
 			log.Fatalln("Invalid ip address")
 		}
 	}
 
-	if !govalidator.IsDNSName(domain) {
+	if !govalidator.IsDNSName(*domain) {
 		log.Fatalln("Invalid domain address")
 	}
 
 	r := mux.NewRouter()
 
 	r.HandleFunc("/", index).Methods("GET")
-	r.HandleFunc("/", shortner).Methods("POST")
-	r.HandleFunc("/{key}", redirect).Methods("GET")
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		shortner(w, r, *proto, *domain, hostSuf, *path, *urlSize)
+	}).Methods("POST")
+	r.HandleFunc("/{key}", func(w http.ResponseWriter, r *http.Request) {
+		redirect(w, r, *path)
+	}).Methods("GET")
 	r.HandleFunc("/v1/count", itemsCount).Methods("GET")
 	r.HandleFunc("/v1/dump", itemsDump).Methods("GET")
-	r.HandleFunc("/v1/dumpToFile", itemsDumpToFile).Methods("GET")
-	r.HandleFunc("/v1/fromFile", itemsFromFile).Methods("GET")
+	r.HandleFunc("/v1/dumpToFile", func(w http.ResponseWriter, r *http.Request) {
+		itemsDumpToFile(w, r, *dumpFile)
+	}).Methods("GET")
+	r.HandleFunc("/v1/fromFile", func(w http.ResponseWriter, r *http.Request) {
+		itemsFromFile(w, r, *dumpFile)
+	}).Methods("GET")
 	r.HandleFunc("/v1/fromPost", itemsFromPost).Methods("POST")
-	log.Printf("Domain: %s, URL Proto: %s\n", domain, proto)
+	log.Printf("Domain: %s, URL Proto: %s, Listen Address: %s\n", *domain, *proto, *addr)
 	log.Fatal(http.ListenAndServe(listenAddr, handlers.CombinedLoggingHandler(os.Stdout, r)))
 }
