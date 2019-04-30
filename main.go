@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -205,7 +206,7 @@ func main() {
 	flag.StringVar(&domain, "domain", "localhost", "Domain to write to the URLs")
 	flag.StringVar(&dumpFile, "dump", "urls.json", "Path to the file to dump the kv db")
 	flag.StringVar(&path, "path", "", "Path to the base URL (https://localhost/PATH/... remember to append a / at the end")
-	flag.StringVar(&port, "port", "8080", "Port to listen for connections")
+	flag.IntVar(&port, "port", 8080, "Port to listen for connections")
 	flag.StringVar(&proto, "proto", "https", "proto to the base URL (HTTPS://localhost/path/... no real https here just to set the url (for like a proxy offloading https")
 	flag.IntVar(&urlSize, "urlsize", 10, "Define the size of the shortened String, default 10")
 	version := flag.Bool("v", false, "prints current version")
@@ -215,11 +216,26 @@ func main() {
 		os.Exit(0)
 	}
 
+	if port > 65535 || port < 1 {
+
+	}
 	if path != "" && !strings.HasSuffix(path, "/") {
 		path = path + "/"
 	}
+	ip := net.ParseIP(addr)
+	if ip != nil {
+		listenAddr = ip.String() + ":" + strconv.Itoa(port)
+	} else {
+		if govalidator.IsDNSName(addr) {
+			listenAddr = addr + ":" + strconv.Itoa(port)
+		} else {
+			log.Fatalln("Invalid ip address")
+		}
+	}
 
-	listenAddr := addr + ":" + port
+	if !govalidator.IsDNSName(domain) {
+		log.Fatalln("Invalid domain address")
+	}
 
 	r := mux.NewRouter()
 
