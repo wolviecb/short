@@ -102,14 +102,6 @@ func shortner(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
-		var hostSuf string
-		if port != "80" && proto == "http" {
-			hostSuf = ":" + port + "/"
-		} else if port != "443" && proto == "https" {
-			hostSuf = ":" + port + "/"
-		} else if port == "443" || port == "80" {
-			hostSuf = "/"
-		}
 		set(u.String(), suffix)
 		shortend := proto + "://" + domain + hostSuf + path + suffix
 		returnTmpl.Execute(w, shortend)
@@ -219,8 +211,12 @@ func main() {
 	if port > 65535 || port < 1 {
 
 	}
-	if path != "" && !strings.HasSuffix(path, "/") {
-		path = path + "/"
+	if port != 80 && proto == "http" {
+		hostSuf = ":" + strconv.Itoa(port) + "/"
+	} else if port != 443 && proto == "https" {
+		hostSuf = ":" + strconv.Itoa(port) + "/"
+	} else if port == 443 || port == 80 {
+		hostSuf = "/"
 	}
 	ip := net.ParseIP(addr)
 	if ip != nil {
