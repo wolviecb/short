@@ -135,7 +135,9 @@ func itemsDump(w http.ResponseWriter, r *http.Request) {
 		pool.Items(),
 	)
 	if err != nil {
-		log.Fatal("BOOM")
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		internalErrorTmpl.Execute(w, err.Error())
 	}
 	w.Write(
 		[]byte(dumpObj),
@@ -149,7 +151,7 @@ func itemsFromFile(w http.ResponseWriter, r *http.Request, dumpFile string) {
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		internalErrorTmpl.Execute(w, "Cannot open file "+dumpFile)
+		internalErrorTmpl.Execute(w, "Cannot open file "+dumpFile+"\n"+err.Error())
 	} else {
 		pool = cache.NewFrom(240*time.Hour, 1*time.Hour, dumpObj)
 		okTmpl.Execute(w, "Imported "+strconv.Itoa(len(dumpObj))+" items to the DB")
@@ -163,7 +165,7 @@ func itemsFromPost(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		internalErrorTmpl.Execute(w, "Cannot parse JSON")
+		internalErrorTmpl.Execute(w, "Cannot parse JSON: "+err.Error())
 	} else {
 		pool = cache.NewFrom(240*time.Hour, 1*time.Hour, dumpObj)
 		okTmpl.Execute(w, "Imported "+strconv.Itoa(len(dumpObj))+" items to the DB")
@@ -177,7 +179,7 @@ func itemsDumpToFile(w http.ResponseWriter, r *http.Request, dumpFile string) {
 	err := ioutil.WriteFile(dumpFile, dumpObj, 0644)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		internalErrorTmpl.Execute(w, "Failed to open json file")
+		internalErrorTmpl.Execute(w, "Failed to open json file: "+err.Error())
 	} else {
 		okTmpl.Execute(w, "Dump writen to: "+dumpFile)
 	}
