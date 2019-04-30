@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -199,7 +198,8 @@ func main() {
 	version := flag.Bool("v", false, "prints current version")
 	flag.Parse()
 	if *version {
-		fmt.Println(appVersion)
+		log.SetFlags(0)
+		log.Println(appVersion)
 		os.Exit(0)
 	}
 
