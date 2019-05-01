@@ -234,21 +234,31 @@ func main() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/", index).Methods("GET")
-	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		shortner(w, r, *proto, *domain, hostSuf, *path, *urlSize)
-	}).Methods("POST")
-	r.HandleFunc("/{key}", func(w http.ResponseWriter, r *http.Request) {
-		redirect(w, r, *path)
-	}).Methods("GET")
+
+	r.HandleFunc("/",
+		func(w http.ResponseWriter, r *http.Request) {
+			shortner(w, r, *proto, *domain, hostSuf, *path, *urlSize)
+		}).Methods("POST")
+
+	r.HandleFunc("/{key}",
+		func(w http.ResponseWriter, r *http.Request) {
+			redirect(w, r, *path)
+		}).Methods("GET")
+
+	r.HandleFunc("/v1/dumpToFile",
+		func(w http.ResponseWriter, r *http.Request) {
+			itemsDumpToFile(w, r, *dumpFile)
+		}).Methods("GET")
+
+	r.HandleFunc("/v1/fromFile",
+		func(w http.ResponseWriter, r *http.Request) {
+			itemsFromFile(w, r, *dumpFile)
+		}).Methods("GET")
+
 	r.HandleFunc("/v1/count", itemsCount).Methods("GET")
 	r.HandleFunc("/v1/dump", itemsDump).Methods("GET")
-	r.HandleFunc("/v1/dumpToFile", func(w http.ResponseWriter, r *http.Request) {
-		itemsDumpToFile(w, r, *dumpFile)
-	}).Methods("GET")
-	r.HandleFunc("/v1/fromFile", func(w http.ResponseWriter, r *http.Request) {
-		itemsFromFile(w, r, *dumpFile)
-	}).Methods("GET")
 	r.HandleFunc("/v1/fromPost", itemsFromPost).Methods("POST")
+
 	log.Printf("Domain: %s, URL Proto: %s, Listen Address: %s\n", *domain, *proto, *addr)
 	log.Fatal(http.ListenAndServe(listenAddr, handlers.CombinedLoggingHandler(os.Stdout, r)))
 }
