@@ -57,6 +57,9 @@ func set(key, suffix string) {
 	pool.Set(suffix, key, 0)
 }
 
+// redirect reads the key from the requests url (GET /key) searches the
+// kv database for it and if found redirects the user to value, if not
+// found return a 404.
 func redirect(w http.ResponseWriter, r *http.Request, path string) {
 	vals := mux.Vars(r)
 	key := vals["key"]
@@ -78,6 +81,11 @@ func redirect(w http.ResponseWriter, r *http.Request, path string) {
 	}
 }
 
+// shortner reads url from a POST request, validates the url, generate a
+// random suffix string of urlSize size, checks if the suffix string is
+// unique on the kv database and if not unique regenerates it and checks again,
+// then if writes the kv pair suffix, url to the database and return the
+// shortened url to the user
 func shortner(w http.ResponseWriter, r *http.Request, proto, domain, hostSuf, path string, urlSize int) {
 	if govalidator.IsURL(r.FormValue("url")) {
 		u, _ := url.Parse(r.FormValue("url"))
@@ -101,7 +109,7 @@ func shortner(w http.ResponseWriter, r *http.Request, proto, domain, hostSuf, pa
 	}
 }
 
-// RandStringBytesMaskImprSrc Generate random string for URL
+// RandStringBytesMaskImprSrc Generate random string of n size
 func RandStringBytesMaskImprSrc(n int) string {
 	b := make([]byte, n)
 	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
@@ -127,6 +135,7 @@ func internalError(w http.ResponseWriter, msg string, err error) {
 	internalErrorTmpl.Execute(w, msg+err.Error())
 }
 
+// itemsCount returns the number of kv pairs on the in meomry database
 func itemsCount(w http.ResponseWriter, r *http.Request) {
 	w.Write(
 		[]byte(
@@ -137,6 +146,7 @@ func itemsCount(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
+// itemsDump returns a json with all the kv pairs on the in memory database
 func itemsDump(w http.ResponseWriter, r *http.Request) {
 	dumpObj, err := json.Marshal(
 		pool.Items(),
@@ -149,6 +159,7 @@ func itemsDump(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
+// itemsFromFile loads kv pairs from the dumpFile json to the in memory database
 func itemsFromFile(w http.ResponseWriter, r *http.Request, dumpFile string) {
 	jsonFile, err := ioutil.ReadFile(dumpFile)
 	var dumpObj map[string]cache.Item
@@ -161,6 +172,7 @@ func itemsFromFile(w http.ResponseWriter, r *http.Request, dumpFile string) {
 	}
 }
 
+// itemsFromPost loads kv pairs from a json POST to the in memory database
 func itemsFromPost(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var dumpObj map[string]cache.Item
@@ -173,6 +185,7 @@ func itemsFromPost(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// itemsDumpToFile dumps the kv pairs from the in memory database to the dumpFile
 func itemsDumpToFile(w http.ResponseWriter, r *http.Request, dumpFile string) {
 	dumpObj, _ := json.Marshal(
 		pool.Items(),
