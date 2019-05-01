@@ -32,7 +32,9 @@ To shorten a URL just post on /, you will get a reply with the shortened URL
 
 ```shell
 curl -X POST -d "url=http://google.com" http://localhost:8080/
+[...]
 URL shortened at: https://localhost:8080/9mbIcOwsVP
+[...]
 ```
 
 URLs missing a Scheme (http[s]://) will be defaulted to https
@@ -57,27 +59,24 @@ $ curl http://localhost:8080/v1/dump
 
 Dump the mapped url to `-dump` file (defaults to ./urls.json)
 
-```shel
-$ curl http://localhost:8080/v1/dumpToFile
-Dump writen to: urls.json
+```shell
+curl http://localhost:8080/v1/dumpToFile
 ```
 
 Load url mappings from `-dump` file to in memory db
 
 ```shell
-$ curl http://localhost:8080/v1/fromFile
-OK
+curl http://localhost:8080/v1/fromFile
 ```
 
 Load url mappings from POST data (Assuming json data on save.json file)
 
 ```shell
-$ curl -X POST http://localhost:8080/v1/fromPost \
+curl -X POST http://localhost:8080/v1/fromPost \
 -H "Content-Type: application/json" \
 --data $(cat save.json )
-OK
 ```
 
 ## HTML templates
 
-A simple collection of html templates are put on `templates` folder, the templates I've used are based on @jspark721 "UI 404 PAGE" on [freefrontend](https://codepen.io/juliepark/pen/erOoeZ)
+A simple collection of html templates are put on `templates` folder, the templates I've used are based on [@jspark721]( https://github.com/jspark721 ) "UI 404 PAGE" on [freefrontend](https://codepen.io/juliepark/pen/erOoeZ)
