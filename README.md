@@ -1,4 +1,4 @@
-# Short - simple go url shortner
+# Short - simple go url shortener
 
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://git.thebarrens.nu/wolvie/short/blob/master/LICENSE)
 [![Build Status](https://git.thebarrens.nu/wolvie/short/badges/master/build.svg)](https://git.thebarrens.nu/wolvie/short/)
