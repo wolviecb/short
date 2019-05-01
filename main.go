@@ -32,12 +32,12 @@ const appVersion = "1.0.0"
 
 var src = rand.NewSource(time.Now().UnixNano())
 var pool = cache.New(240*time.Hour, 1*time.Hour)
+var okTmpl = template.Must(template.ParseFiles("templates/ok.html"))
 var indexTmpl = template.Must(template.ParseFiles("templates/index.html"))
 var returnTmpl = template.Must(template.ParseFiles("templates/returnPage.html"))
 var notFoundTmpl = template.Must(template.ParseFiles("templates/404.html"))
 var badRequestTmpl = template.Must(template.ParseFiles("templates/400.html"))
 var internalErrorTmpl = template.Must(template.ParseFiles("templates/500.html"))
-var okTmpl = template.Must(template.ParseFiles("templates/ok.html"))
 
 func index(w http.ResponseWriter, r *http.Request) {
 	indexTmpl.Execute(w, indexTmpl)
