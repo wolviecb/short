@@ -119,6 +119,14 @@ func RandStringBytesMaskImprSrc(n int) string {
 	return string(b)
 }
 
+// internalError receives a http.ResponseWriter, msg and error and
+// return a internal error page with http code 500 to the user
+func internalError(w http.ResponseWriter, msg string, err error) {
+	log.Println(err)
+	w.WriteHeader(http.StatusInternalServerError)
+	internalErrorTmpl.Execute(w, msg+err.Error())
+}
+
 func itemsCount(w http.ResponseWriter, r *http.Request) {
 	w.Write(
 		[]byte(
@@ -134,9 +142,7 @@ func itemsDump(w http.ResponseWriter, r *http.Request) {
 		pool.Items(),
 	)
 	if err != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		internalErrorTmpl.Execute(w, err.Error())
+		internalError(w, "Unable to dump key value db: ", err)
 	}
 	w.Write(
 		[]byte(dumpObj),
@@ -148,9 +154,7 @@ func itemsFromFile(w http.ResponseWriter, r *http.Request, dumpFile string) {
 	var dumpObj map[string]cache.Item
 	json.Unmarshal([]byte(jsonFile), &dumpObj)
 	if err != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		internalErrorTmpl.Execute(w, "Cannot open file "+dumpFile+"\n"+err.Error())
+		internalError(w, "Cannot open file "+dumpFile+": ", err)
 	} else {
 		pool = cache.NewFrom(240*time.Hour, 1*time.Hour, dumpObj)
 		okTmpl.Execute(w, "Imported "+strconv.Itoa(len(dumpObj))+" items to the DB")
@@ -162,9 +166,7 @@ func itemsFromPost(w http.ResponseWriter, r *http.Request) {
 	var dumpObj map[string]cache.Item
 	err := decoder.Decode(&dumpObj)
 	if err != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		internalErrorTmpl.Execute(w, "Cannot parse JSON: "+err.Error())
+		internalError(w, "Cannot parse JSON: ", err)
 	} else {
 		pool = cache.NewFrom(240*time.Hour, 1*time.Hour, dumpObj)
 		okTmpl.Execute(w, "Imported "+strconv.Itoa(len(dumpObj))+" items to the DB")
@@ -177,8 +179,7 @@ func itemsDumpToFile(w http.ResponseWriter, r *http.Request, dumpFile string) {
 	)
 	err := ioutil.WriteFile(dumpFile, dumpObj, 0644)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		internalErrorTmpl.Execute(w, "Failed to open json file: "+err.Error())
+		internalError(w, "Failed to open json file: ", err)
 	} else {
 		okTmpl.Execute(w, "Dump writen to: "+dumpFile)
 	}
