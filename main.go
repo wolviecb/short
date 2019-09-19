@@ -28,7 +28,7 @@ const (
 	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
 )
-const appVersion = "1.0.1"
+const appVersion = "1.1.0"
 
 var src = rand.NewSource(time.Now().UnixNano())
 var pool = cache.New(240*time.Hour, 1*time.Hour)
