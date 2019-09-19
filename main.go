@@ -22,7 +22,7 @@ import (
 	"github.com/patrickmn/go-cache"
 )
 
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" // Base strings for RandStringBytesMaskImprSrc
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" // Base strings for randStringBytesMaskImprSrc
 const (
 	letterIdxBits = 6                    // 6 bits to represent a letter index
 	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
@@ -69,7 +69,11 @@ func redirect(w http.ResponseWriter, r *http.Request, path string) {
 	rgx, _ := regexp.Compile("[a-zA-Z0-9]+")
 	key = rgx.FindString(key)
 	key, status := get(key)
-	if status {
+	if !status {
+		w.WriteHeader(http.StatusNotFound)
+		notFoundTmpl.Execute(w, nil)
+		return
+	}
 		u, _ := url.Parse(key)
 		if u.Scheme == "" {
 			u.Scheme = "https"
@@ -87,30 +91,28 @@ func redirect(w http.ResponseWriter, r *http.Request, path string) {
 // then if writes the kv pair suffix, url to the database and return the
 // shortened url to the user
 func shortner(w http.ResponseWriter, r *http.Request, proto, domain, hostSuf, path string, urlSize int) {
-	if govalidator.IsURL(r.FormValue("url")) {
+	if !govalidator.IsURL(r.FormValue("url")) {
+		w.WriteHeader(http.StatusBadRequest)
+		badRequestTmpl.Execute(w, nil)
+		return
+	}
 		u, _ := url.Parse(r.FormValue("url"))
+	suffix := randStringBytesMaskImprSrc(urlSize)
 
-		suffix := RandStringBytesMaskImprSrc(urlSize)
 		for {
 			_, status := get(suffix)
-			if status {
-				suffix = RandStringBytesMaskImprSrc(urlSize)
-			} else {
+		if !status {
 				break
 			}
+		suffix = randStringBytesMaskImprSrc(urlSize)
 		}
 		set(u.String(), suffix)
 		shortend := proto + "://" + domain + hostSuf + path + suffix
 		returnTmpl.Execute(w, shortend)
-
-	} else {
-		w.WriteHeader(http.StatusBadRequest)
-		badRequestTmpl.Execute(w, badRequestTmpl)
-	}
 }
 
-// RandStringBytesMaskImprSrc Generate random string of n size
-func RandStringBytesMaskImprSrc(n int) string {
+// randStringBytesMaskImprSrc Generate random string of n size
+func randStringBytesMaskImprSrc(n int) string {
 	b := make([]byte, n)
 	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
 	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
