@@ -32,29 +32,26 @@ const appVersion = "1.1.0"
 
 var src = rand.NewSource(time.Now().UnixNano())
 var pool = cache.New(240*time.Hour, 1*time.Hour)
-var templates *template.Template
-var allFiles []string
+var t = template.Must(template.ParseFiles("templates/response.html"))
 
-func init() {
-	files, err := ioutil.ReadDir("templates")
-	if err != nil {
-		log.Fatalln(err)
-	}
-	for _, file := range files {
-		filename := file.Name()
-		if strings.HasSuffix(filename, ".html") {
-			allFiles = append(allFiles, "templates/"+filename)
-		}
-	}
-	templates, err = template.ParseFiles(allFiles...)
-	if err != nil {
-		log.Fatalln(err)
-	}
+type body struct {
+	FullHeader bool
+	IsGhost    bool
+	HasForm    bool
+	IsLink     bool
+	H1         string
+	H3         string
+	Line1      string
+	Line2      string
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
-	t := templates.Lookup("index.html")
-	t.Execute(w, nil)
+	b := body{
+		HasForm: true,
+		Line1:   "Welcome to Short, the simple URL shortener,",
+		Line2:   "Type an URL below to shorten it",
+	}
+	t.Execute(w, b)
 }
 
 // get executes the  GET command
@@ -77,7 +74,15 @@ func set(key, suffix string) {
 func redirect(w http.ResponseWriter, r *http.Request, path string) {
 	vals := mux.Vars(r)
 	key := vals["key"]
-	t := templates.Lookup("404.html")
+	b := body{
+		FullHeader: true,
+		IsGhost:    true,
+		HasForm:    true,
+		H1:         "404",
+		H3:         "page not found",
+		Line1:      "Boo, looks like this ghost stole this page!",
+		Line2:      "But you can type an URL below to shorten it",
+	}
 	if path != "" {
 		key = strings.Replace(key, path, "", 1)
 	}
@@ -86,7 +91,7 @@ func redirect(w http.ResponseWriter, r *http.Request, path string) {
 	key, status := get(key)
 	if !status {
 		w.WriteHeader(http.StatusNotFound)
-		t.Execute(w, nil)
+		t.Execute(w, b)
 		return
 	}
 	u, _ := url.Parse(key)
@@ -102,11 +107,18 @@ func redirect(w http.ResponseWriter, r *http.Request, path string) {
 // then if writes the kv pair suffix, url to the database and return the
 // shortened url to the user
 func shortner(w http.ResponseWriter, r *http.Request, proto, domain, hostSuf, path string, urlSize int) {
-	ret := templates.Lookup("returnPage.html")
-	badR := templates.Lookup("400.html")
 	if !govalidator.IsURL(r.FormValue("url")) {
+		b := body{
+			FullHeader: true,
+			IsGhost:    true,
+			HasForm:    true,
+			H1:         "400",
+			H3:         "bad request",
+			Line1:      "Boo, looks like this ghost stole this page!",
+			Line2:      "But you can type an URL below to shorten it",
+		}
 		w.WriteHeader(http.StatusBadRequest)
-		badR.Execute(w, nil)
+		t.Execute(w, b)
 		return
 	}
 	u, _ := url.Parse(r.FormValue("url"))
@@ -121,7 +133,11 @@ func shortner(w http.ResponseWriter, r *http.Request, proto, domain, hostSuf, pa
 	}
 	set(u.String(), suffix)
 	shortend := proto + "://" + domain + hostSuf + path + suffix
-	ret.Execute(w, shortend)
+	b := body{
+		IsLink: true,
+		Line1:  shortend,
+	}
+	t.Execute(w, b)
 }
 
 // randStringBytesMaskImprSrc Generate random string of n size
@@ -145,10 +161,18 @@ func randStringBytesMaskImprSrc(n int) string {
 // internalError receives a http.ResponseWriter, msg and error and
 // return a internal error page with http code 500 to the user
 func internalError(w http.ResponseWriter, msg string, err error) {
-	t := templates.Lookup("500.html")
+	b := body{
+		FullHeader: true,
+		IsGhost:    true,
+		HasForm:    true,
+		H1:         "500",
+		H3:         "internal erver error",
+		Line1:      "Boo, the ghost is broken :(",
+		Line2:      "His last words where: " + err.Error(),
+	}
 	log.Println(err)
 	w.WriteHeader(http.StatusInternalServerError)
-	t.Execute(w, msg+err.Error())
+	t.Execute(w, b)
 }
 
 // itemsCount returns the number of kv pairs on the in meomry database
@@ -177,44 +201,51 @@ func itemsDump(w http.ResponseWriter, r *http.Request) {
 
 // itemsFromFile loads kv pairs from the dumpFile json to the in memory database
 func itemsFromFile(w http.ResponseWriter, r *http.Request, dumpFile string) {
-	t := templates.Lookup("ok.html")
 	jsonFile, err := ioutil.ReadFile(dumpFile)
 	var dumpObj map[string]cache.Item
 	json.Unmarshal([]byte(jsonFile), &dumpObj)
 	if err != nil {
 		internalError(w, "Cannot open file "+dumpFile+": ", err)
-	} else {
-		pool = cache.NewFrom(240*time.Hour, 1*time.Hour, dumpObj)
-		t.Execute(w, "Imported "+strconv.Itoa(len(dumpObj))+" items to the DB")
+		return
 	}
+	pool = cache.NewFrom(240*time.Hour, 1*time.Hour, dumpObj)
+	b := body{
+		Line1: "Imported " + strconv.Itoa(len(dumpObj)) + " items to the DB",
+	}
+	t.Execute(w, b)
 }
 
 // itemsFromPost loads kv pairs from a json POST to the in memory database
 func itemsFromPost(w http.ResponseWriter, r *http.Request) {
-	t := templates.Lookup("ok.html")
 	decoder := json.NewDecoder(r.Body)
 	var dumpObj map[string]cache.Item
 	err := decoder.Decode(&dumpObj)
 	if err != nil {
 		internalError(w, "Cannot parse JSON: ", err)
-	} else {
-		pool = cache.NewFrom(240*time.Hour, 1*time.Hour, dumpObj)
-		t.Execute(w, "Imported "+strconv.Itoa(len(dumpObj))+" items to the DB")
+		return
 	}
+	pool = cache.NewFrom(240*time.Hour, 1*time.Hour, dumpObj)
+	b := body{
+		Line1: "Imported " + strconv.Itoa(len(dumpObj)) + " items to the DB",
+	}
+	t.Execute(w, b)
 }
 
 // itemsDumpToFile dumps the kv pairs from the in memory database to the dumpFile
 func itemsDumpToFile(w http.ResponseWriter, r *http.Request, dumpFile string) {
-	t := templates.Lookup("ok.html")
 	dumpObj, _ := json.Marshal(
 		pool.Items(),
 	)
 	err := ioutil.WriteFile(dumpFile, dumpObj, 0644)
 	if err != nil {
 		internalError(w, "Failed to open json file: ", err)
-	} else {
-		t.Execute(w, "Dump writen to: "+dumpFile)
+		return
 	}
+	b := body{
+		Line1: "Imported " + "Dump writen to: " + dumpFile,
+	}
+	t.Execute(w, b)
+
 }
 
 func main() {
