@@ -1,4 +1,5 @@
-{{ define "header" }}
+<!DOCTYPE html>
+<html lang=en>
 <head>
   <title>Short: the simple url shortener</title>
     <style>
@@ -7,7 +8,7 @@
     body {
       background: #D3DEEA;
     }
-
+    {{ if eq .FullHeader true }}
     .top {
       margin-top: 30px;
     }
@@ -189,57 +190,12 @@
       margin-top: -20px;
       font-weight: 900;
     }
-    p {
-      text-align: center;
-      font-family: 'Lato', sans-serif;
-      color: #585959;
-      font-size: .6em;
-      margin-top: -20px;
-      text-transform: uppercase;
-    }
-
-    .search {
-      text-align: center;
-    }
 
     .buttons {
       display: flex;
       align-items: center;
       justify-content: center;
       margin-top: 10px;
-    }
-
-    /*search style*/
-
-    .search-bar {
-      border: 1px solid #BFC0C0;
-      padding: 5px;
-      height: 20px;
-      margin-left: -30px;
-      width: 200px;
-      outline: none;
-      &:focus {
-        border: 1px solid #D3DEEA;
-      }
-    }
-
-    .search-btn {
-      position: absolute;
-      width: 30px;
-      height: 32px;
-      border: 1px solid #BFC0C0;
-      background: #BFC0C0;
-      text-align: center;
-      color: #EDEDED;
-      cursor: pointer;
-      font-size: 1em;
-      outline: none;
-      &:hover {
-        background: #EDEDED;
-        border: 1px solid #EDEDED;
-        color: #BFC0C0;
-        transition: all .2s ease;
-      }
     }
 
     .btn {
@@ -277,6 +233,124 @@
         }
       }
     }
+    {{ else }}
+    form{
+      position:fixed;
+      top:32%;
+      left:35%;
+      width:500px;
+      font-family:georgia,garamond,serif;
+      font-size:16px;
+
+    }
+    .bottom {
+      position:fixed;
+      top:30%;
+      left:35%;
+      width:500px;
+    }
+
+    {{ end }}
+    p {
+      text-align: center;
+      font-family: 'Lato', sans-serif;
+      color: #585959;
+      font-size: .6em;
+      margin-top: -20px;
+      text-transform: uppercase;
+    }
+
+    .search {
+      text-align: center;
+    }
+
+    /*search style*/
+
+    .search-bar {
+      border: 1px solid #BFC0C0;
+      padding: 5px;
+      height: 20px;
+      margin-left: -30px;
+      width: 200px;
+      outline: none;
+      &:focus {
+        border: 1px solid #D3DEEA;
+      }
+    }
+
+    .search-btn {
+      position: absolute;
+      width: 30px;
+      height: 32px;
+      border: 1px solid #BFC0C0;
+      background: #BFC0C0;
+      text-align: center;
+      color: #EDEDED;
+      cursor: pointer;
+      font-size: 1em;
+      outline: none;
+      &:hover {
+        background: #EDEDED;
+        border: 1px solid #EDEDED;
+        color: #BFC0C0;
+        transition: all .2s ease;
+      }
+    }
     </style>
   </head>
-{{ end }}
+  <body>
+  {{ if eq .IsGhost true }}
+  <div id="background"></div>
+  <div class="top">
+    <h1>{{ .H1 }}</h1>
+    <h3>{{ .H3 }}</h3>
+  </div>
+  <div class="container">
+  <div class="ghost-copy">
+    <div class="one"></div>
+    <div class="two"></div>
+    <div class="three"></div>
+    <div class="four"></div>
+  </div>
+  <div class="ghost">
+    <div class="face">
+      {{ if or (eq .H1 "404") (eq .H1 "400" ) }}
+      <div class="eye"></div>
+      <div class="eye-right"></div>
+      {{ else if eq .H1 "500" }}
+      <div class="deadeye"><h3 style="color:black;font-size:1.5em">X</h3></div>
+      <div class="deadeye-right"><h3 style="color:black;font-size:1.5em">X</h3></div>
+      {{ end }}
+      {{ if eq .H1 "404" }}
+      <div class="mouth"></div>
+      {{ else if or ( eq .H1 "400") (eq .H1 "500") }}
+      <div class="sad_mouth"></div>
+      {{ end }}
+    </div>
+  </div>
+  <div class="shadow"></div>
+  </div>
+  {{ end }}
+  <div class="bottom">
+    {{ if eq .IsLink true }}
+    <p>URL Shortened to <a href="{{ .Line1 }}">{{ .Line1 }}</a></p>
+    <p></a></p>
+    {{ else }}
+    <p>{{ .Line1 }}
+    <br>
+    {{ .Line2 }}</p>
+    {{ end }}
+    {{ if eq .HasForm true }}
+    <form class="search" action="/" method="POST">
+      <input type="text" id="url" name="url" class="search-bar" placeholder="http://something :)">
+      <button type="submit" value="Submit" name="Submit" class="search-btn">
+        <i class="fa fa-search"></i>
+      </button>
+    </form>
+    {{ end }}
+  </div>
+  <footer>
+    <p>html theme by <a href="https://codepen.io/juliepark"> julie</a> ♡
+  </footer>
+  </body>
+</html>
