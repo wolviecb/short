@@ -1,33 +1,10 @@
 <!DOCTYPE html>
 <html lang=en>
-  <head>
-    <title>Short: the simple url shortner</title>
-    <style>
-		@import url('https://fonts.googleapis.com/css?family=Abril+Fatface|Lato');
-
-    body {
-      background: #D3DEEA;
-    }
-
-		.bottom {
-      position:fixed;
-			top:30%;
-			left:35%;
-    }
-
-		p {
-      text-align: center;
-      font-family: 'Lato', sans-serif;
-      color: #585959;
-      font-size: .9em;
-      margin-top: -20px;
-      text-transform: uppercase;
-    }
-    </style>
-  </head>
-<body>
-	<div class="bottom">
-		<p>{{ . }}</a></p>
-	</div>
-</body>
+  {{ template "slimheader" }}
+  <body>
+    <div class="bottom">
+      <p>{{ . }}</a></p>
+    </div>
+  {{ template "footer" }}
+  </body>
 </html>
