@@ -22,17 +22,19 @@ import (
 	"github.com/patrickmn/go-cache"
 )
 
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" // Base strings for randStringBytesMaskImprSrc
-const (
-	letterIdxBits = 6                    // 6 bits to represent a letter index
-	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
-	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
-)
-const appVersion = "1.2.0"
-
-var src = rand.NewSource(time.Now().UnixNano())
-var pool = cache.New(240*time.Hour, 1*time.Hour)
-var t = template.Must(template.ParseFiles("templates/response.html"))
+type config struct {
+	addr       string
+	domain     string
+	dumpFile   string
+	path       string
+	proto      string
+	hostSuf    string
+	listenAddr string
+	port       int
+	urlSize    int
+	version    bool
+	templates  *template.Template
+}
 
 type body struct {
 	FullHeader bool
@@ -45,13 +47,77 @@ type body struct {
 	Line2      string
 }
 
-func index(w http.ResponseWriter, r *http.Request) {
+const (
+	letterBytes   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" // Base strings for randStringBytesMaskImprSrc
+	letterIdxBits = 6                                                                // 6 bits to represent a letter index
+	letterIdxMask = 1<<letterIdxBits - 1                                             // All 1-bits, as many as letterIdxBits
+	letterIdxMax  = 63 / letterIdxBits                                               // # of letter indices fitting in 63 bits
+	appVersion    = "1.2.1"
+)
+
+var (
+	cfg  config
+	src  = rand.NewSource(time.Now().UnixNano())
+	pool = cache.New(240*time.Hour, 1*time.Hour)
+)
+
+func init() {
+	flag.StringVar(&cfg.addr, "addr", "localhost", "Address to listen for connections")
+	flag.StringVar(&cfg.domain, "domain", "localhost", "Domain to write to the URLs")
+	flag.StringVar(&cfg.dumpFile, "dump", "urls.json", "Path to the file to dump the kv db")
+	flag.StringVar(&cfg.path, "path", "", "Path to the base URL (https://localhost/PATH/... remember to append a / at the end")
+	flag.StringVar(&cfg.proto, "proto", "https", "proto to the base URL (HTTPS://localhost/path/... no real https here just to set the url (for like a proxy offloading https")
+	flag.IntVar(&cfg.port, "port", 8080, "Port to listen for connections")
+	flag.IntVar(&cfg.urlSize, "urlsize", 10, "Define the size of the shortened String, default 10")
+	flag.BoolVar(&cfg.version, "v", false, "prints current version")
+	flag.Parse()
+
+	if cfg.version {
+		log.SetFlags(0)
+		log.Println(appVersion)
+		os.Exit(0)
+	}
+
+	if cfg.port > 65535 || cfg.port < 1 {
+		log.Fatalln("Invalid port number")
+	}
+	if cfg.path != "" && !strings.HasSuffix(cfg.path, "/") {
+		cfg.path = cfg.path + "/"
+	}
+
+	if cfg.port != 80 && cfg.proto == "http" {
+		cfg.hostSuf = ":" + strconv.Itoa(cfg.port) + "/"
+	} else if cfg.port != 443 && cfg.proto == "https" {
+		cfg.hostSuf = ":" + strconv.Itoa(cfg.port) + "/"
+	} else if cfg.port == 443 || cfg.port == 80 {
+		cfg.hostSuf = "/"
+	}
+
+	ip := net.ParseIP(cfg.addr)
+	if ip != nil {
+		cfg.listenAddr = ip.String() + ":" + strconv.Itoa(cfg.port)
+	} else {
+		if govalidator.IsDNSName(cfg.addr) {
+			cfg.listenAddr = cfg.addr + ":" + strconv.Itoa(cfg.port)
+		} else {
+			log.Fatalln("Invalid ip address")
+		}
+	}
+
+	if !govalidator.IsDNSName(cfg.domain) {
+		log.Fatalln("Invalid domain address")
+	}
+
+	cfg.templates = template.Must(template.ParseFiles("templates/response.html"))
+}
+
+func (c config) index(w http.ResponseWriter, r *http.Request) {
 	b := body{
 		HasForm: true,
 		Line1:   "Welcome to Short, the simple URL shortener,",
 		Line2:   "Type an URL below to shorten it",
 	}
-	t.Execute(w, b)
+	c.templates.Execute(w, b)
 }
 
 // get executes the  GET command
@@ -71,7 +137,7 @@ func set(key, suffix string) {
 // redirect reads the key from the requests url (GET /key) searches the
 // kv database for it and if found redirects the user to value, if not
 // found return a 404.
-func redirect(w http.ResponseWriter, r *http.Request, path string) {
+func (c config) redirect(w http.ResponseWriter, r *http.Request) {
 	vals := mux.Vars(r)
 	key := vals["key"]
 	b := body{
@@ -83,15 +149,15 @@ func redirect(w http.ResponseWriter, r *http.Request, path string) {
 		Line1:      "Boo, looks like this ghost stole this page!",
 		Line2:      "But you can type an URL below to shorten it",
 	}
-	if path != "" {
-		key = strings.Replace(key, path, "", 1)
+	if c.path != "" {
+		key = strings.Replace(key, c.path, "", 1)
 	}
 	rgx, _ := regexp.Compile("[a-zA-Z0-9]+")
 	key = rgx.FindString(key)
 	key, status := get(key)
 	if !status {
 		w.WriteHeader(http.StatusNotFound)
-		t.Execute(w, b)
+		c.templates.Execute(w, b)
 		return
 	}
 	u, _ := url.Parse(key)
@@ -106,7 +172,7 @@ func redirect(w http.ResponseWriter, r *http.Request, path string) {
 // unique on the kv database and if not unique regenerates it and checks again,
 // then if writes the kv pair suffix, url to the database and return the
 // shortened url to the user
-func shortner(w http.ResponseWriter, r *http.Request, proto, domain, hostSuf, path string, urlSize int) {
+func (c config) shortner(w http.ResponseWriter, r *http.Request) {
 	if !govalidator.IsURL(r.FormValue("url")) {
 		b := body{
 			FullHeader: true,
@@ -118,26 +184,26 @@ func shortner(w http.ResponseWriter, r *http.Request, proto, domain, hostSuf, pa
 			Line2:      "But you can type an URL below to shorten it",
 		}
 		w.WriteHeader(http.StatusBadRequest)
-		t.Execute(w, b)
+		c.templates.Execute(w, b)
 		return
 	}
 	u, _ := url.Parse(r.FormValue("url"))
-	suffix := randStringBytesMaskImprSrc(urlSize)
+	suffix := randStringBytesMaskImprSrc(c.urlSize)
 
 	for {
 		_, status := get(suffix)
 		if !status {
 			break
 		}
-		suffix = randStringBytesMaskImprSrc(urlSize)
+		suffix = randStringBytesMaskImprSrc(c.urlSize)
 	}
 	set(u.String(), suffix)
-	shortend := proto + "://" + domain + hostSuf + path + suffix
+	shortend := c.proto + "://" + c.domain + c.hostSuf + c.path + suffix
 	b := body{
 		IsLink: true,
 		Line1:  shortend,
 	}
-	t.Execute(w, b)
+	c.templates.Execute(w, b)
 }
 
 // randStringBytesMaskImprSrc Generate random string of n size
@@ -160,7 +226,7 @@ func randStringBytesMaskImprSrc(n int) string {
 
 // internalError receives a http.ResponseWriter, msg and error and
 // return a internal error page with http code 500 to the user
-func internalError(w http.ResponseWriter, msg string, err error) {
+func (c config) internalError(w http.ResponseWriter, msg string, err error) {
 	b := body{
 		FullHeader: true,
 		IsGhost:    true,
@@ -172,11 +238,11 @@ func internalError(w http.ResponseWriter, msg string, err error) {
 	}
 	log.Println(err)
 	w.WriteHeader(http.StatusInternalServerError)
-	t.Execute(w, b)
+	c.templates.Execute(w, b)
 }
 
 // itemsCount returns the number of kv pairs on the in meomry database
-func itemsCount(w http.ResponseWriter, r *http.Request) {
+func (c config) itemsCount(w http.ResponseWriter, r *http.Request) {
 	w.Write(
 		[]byte(
 			strconv.Itoa(
@@ -187,12 +253,12 @@ func itemsCount(w http.ResponseWriter, r *http.Request) {
 }
 
 // itemsDump returns a json with all the kv pairs on the in memory database
-func itemsDump(w http.ResponseWriter, r *http.Request) {
+func (c config) itemsDump(w http.ResponseWriter, r *http.Request) {
 	dumpObj, err := json.Marshal(
 		pool.Items(),
 	)
 	if err != nil {
-		internalError(w, "Unable to dump key value db: ", err)
+		c.internalError(w, "Unable to dump key value db: ", err)
 	}
 	w.Write(
 		[]byte(dumpObj),
@@ -200,129 +266,66 @@ func itemsDump(w http.ResponseWriter, r *http.Request) {
 }
 
 // itemsFromFile loads kv pairs from the dumpFile json to the in memory database
-func itemsFromFile(w http.ResponseWriter, r *http.Request, dumpFile string) {
-	jsonFile, err := ioutil.ReadFile(dumpFile)
+func (c config) itemsFromFile(w http.ResponseWriter, r *http.Request) {
+	jsonFile, err := ioutil.ReadFile(c.dumpFile)
 	var dumpObj map[string]cache.Item
 	json.Unmarshal([]byte(jsonFile), &dumpObj)
 	if err != nil {
-		internalError(w, "Cannot open file "+dumpFile+": ", err)
+		c.internalError(w, "Cannot open file "+c.dumpFile+": ", err)
 		return
 	}
 	pool = cache.NewFrom(240*time.Hour, 1*time.Hour, dumpObj)
 	b := body{
 		Line1: "Imported " + strconv.Itoa(len(dumpObj)) + " items to the DB",
 	}
-	t.Execute(w, b)
+	c.templates.Execute(w, b)
 }
 
 // itemsFromPost loads kv pairs from a json POST to the in memory database
-func itemsFromPost(w http.ResponseWriter, r *http.Request) {
+func (c config) itemsFromPost(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var dumpObj map[string]cache.Item
 	err := decoder.Decode(&dumpObj)
 	if err != nil {
-		internalError(w, "Cannot parse JSON: ", err)
+		c.internalError(w, "Cannot parse JSON: ", err)
 		return
 	}
 	pool = cache.NewFrom(240*time.Hour, 1*time.Hour, dumpObj)
 	b := body{
 		Line1: "Imported " + strconv.Itoa(len(dumpObj)) + " items to the DB",
 	}
-	t.Execute(w, b)
+	c.templates.Execute(w, b)
 }
 
 // itemsDumpToFile dumps the kv pairs from the in memory database to the dumpFile
-func itemsDumpToFile(w http.ResponseWriter, r *http.Request, dumpFile string) {
+func (c config) itemsDumpToFile(w http.ResponseWriter, r *http.Request) {
 	dumpObj, _ := json.Marshal(
 		pool.Items(),
 	)
-	err := ioutil.WriteFile(dumpFile, dumpObj, 0644)
+	err := ioutil.WriteFile(c.dumpFile, dumpObj, 0644)
 	if err != nil {
-		internalError(w, "Failed to open json file: ", err)
+		c.internalError(w, "Failed to open json file: ", err)
 		return
 	}
 	b := body{
-		Line1: "Imported " + "Dump writen to: " + dumpFile,
+		Line1: "Imported " + "Dump writen to: " + c.dumpFile,
 	}
-	t.Execute(w, b)
-
+	c.templates.Execute(w, b)
 }
 
 func main() {
-	var hostSuf string
-	var listenAddr string
-
-	addr := flag.String("addr", "localhost", "Address to listen for connections")
-	domain := flag.String("domain", "localhost", "Domain to write to the URLs")
-	dumpFile := flag.String("dump", "urls.json", "Path to the file to dump the kv db")
-	path := flag.String("path", "", "Path to the base URL (https://localhost/PATH/... remember to append a / at the end")
-	port := flag.Int("port", 8080, "Port to listen for connections")
-	proto := flag.String("proto", "https", "proto to the base URL (HTTPS://localhost/path/... no real https here just to set the url (for like a proxy offloading https")
-	urlSize := flag.Int("urlsize", 10, "Define the size of the shortened String, default 10")
-	version := flag.Bool("v", false, "prints current version")
-	flag.Parse()
-	if *version {
-		log.SetFlags(0)
-		log.Println(appVersion)
-		os.Exit(0)
-	}
-
-	if *port > 65535 || *port < 1 {
-		log.Fatalln("Invalid port number")
-	}
-	if *path != "" && !strings.HasSuffix(*path, "/") {
-		*path = *path + "/"
-	}
-	if *port != 80 && *proto == "http" {
-		hostSuf = ":" + strconv.Itoa(*port) + "/"
-	} else if *port != 443 && *proto == "https" {
-		hostSuf = ":" + strconv.Itoa(*port) + "/"
-	} else if *port == 443 || *port == 80 {
-		hostSuf = "/"
-	}
-	ip := net.ParseIP(*addr)
-	if ip != nil {
-		listenAddr = ip.String() + ":" + strconv.Itoa(*port)
-	} else {
-		if govalidator.IsDNSName(*addr) {
-			listenAddr = *addr + ":" + strconv.Itoa(*port)
-		} else {
-			log.Fatalln("Invalid ip address")
-		}
-	}
-
-	if !govalidator.IsDNSName(*domain) {
-		log.Fatalln("Invalid domain address")
-	}
 
 	r := mux.NewRouter()
 
-	r.HandleFunc("/", index).Methods("GET")
+	r.HandleFunc("/", cfg.index).Methods("GET")
+	r.HandleFunc("/", cfg.shortner).Methods("POST")
+	r.HandleFunc("/{key}", cfg.redirect).Methods("GET")
+	r.HandleFunc("/v1/dumpToFile", cfg.itemsDumpToFile).Methods("GET")
+	r.HandleFunc("/v1/fromFile", cfg.itemsFromFile).Methods("GET")
+	r.HandleFunc("/v1/count", cfg.itemsCount).Methods("GET")
+	r.HandleFunc("/v1/dump", cfg.itemsDump).Methods("GET")
+	r.HandleFunc("/v1/fromPost", cfg.itemsFromPost).Methods("POST")
 
-	r.HandleFunc("/",
-		func(w http.ResponseWriter, r *http.Request) {
-			shortner(w, r, *proto, *domain, hostSuf, *path, *urlSize)
-		}).Methods("POST")
-
-	r.HandleFunc("/{key}",
-		func(w http.ResponseWriter, r *http.Request) {
-			redirect(w, r, *path)
-		}).Methods("GET")
-
-	r.HandleFunc("/v1/dumpToFile",
-		func(w http.ResponseWriter, r *http.Request) {
-			itemsDumpToFile(w, r, *dumpFile)
-		}).Methods("GET")
-
-	r.HandleFunc("/v1/fromFile",
-		func(w http.ResponseWriter, r *http.Request) {
-			itemsFromFile(w, r, *dumpFile)
-		}).Methods("GET")
-
-	r.HandleFunc("/v1/count", itemsCount).Methods("GET")
-	r.HandleFunc("/v1/dump", itemsDump).Methods("GET")
-	r.HandleFunc("/v1/fromPost", itemsFromPost).Methods("POST")
-
-	log.Printf("Domain: %s, URL Proto: %s, Listen Address: %s\n", *domain, *proto, *addr)
-	log.Fatal(http.ListenAndServe(listenAddr, handlers.CombinedLoggingHandler(os.Stdout, r)))
+	log.Printf("Domain: %s, URL Proto: %s, Listen Address: %s\n", cfg.domain, cfg.proto, cfg.listenAddr)
+	log.Fatal(http.ListenAndServe(cfg.listenAddr, handlers.CombinedLoggingHandler(os.Stdout, r)))
 }
