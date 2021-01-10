@@ -1,4 +1,4 @@
-FROM golang:1.12.9 as builder
+FROM golang:1.15 as builder
 
 ENV CGO_ENABLED=0
 
