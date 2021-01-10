@@ -3,6 +3,7 @@ package shortie
 import (
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -10,7 +11,6 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/asaskevich/govalidator"
