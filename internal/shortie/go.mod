@@ -1,4 +1,4 @@
-module github.com/wolviecb/short/shortie
+module shortie
 
 go 1.18
 

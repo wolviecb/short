@@ -11,8 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"internal/shortie"
+
 	"github.com/valyala/fasthttp"
-	"github.com/wolviecb/short/shortie"
 
 	"github.com/asaskevich/govalidator"
 	"github.com/fasthttp/router"
