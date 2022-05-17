@@ -159,7 +159,7 @@ func loadFromFile() (int, error) {
 	return len(dumpObj), err
 }
 
-// itemsFromPost loads kv pairs from a json POST to the in memory database
+// loadFromJSON loads kv pairs from a json to the in memory database
 func loadFromJSON(j []byte) (int, error) {
 	dumpObj := make(map[string]cache.Item)
 	err := json.Unmarshal(j, &dumpObj)
