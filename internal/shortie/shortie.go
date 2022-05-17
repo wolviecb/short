@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -57,6 +57,9 @@ var (
 	Path string = ""
 	// DumpFile is the file to dump URL data
 	DumpFile string = "urls.json"
+	// Error Definitions
+	ErrBadRequest = fmt.Errorf("bad request")
+	ErrNotFound   = fmt.Errorf("not found")
 )
 
 // get executes the GET command
@@ -98,7 +101,7 @@ func redirect(k string) (string, error) {
 	key := rgx.FindString(k)
 	key, status := get(key)
 	if !status {
-		return "", fmt.Errorf("Not Found")
+		return "", ErrNotFound
 	}
 	u, _ := url.Parse(key)
 	if u.Scheme == "" {
@@ -110,13 +113,12 @@ func redirect(k string) (string, error) {
 // shortener receive a url, validates the url, generate a random suffix string
 // of urlSize size, checks if the suffix string is ensure on the kv database
 // and then writes the kv pair (suffix, url) to the database, returning the suffix
-func shortener(u []byte, s int) (string, error) {
+func shortener(u string, s int) (string, error) {
 	var su string
-	us := string(u)
-	if !govalidator.IsURL(string(us)) {
-		return su, fmt.Errorf("Bad Request")
+	if !govalidator.IsURL(string(u)) {
+		return su, ErrBadRequest
 	}
-	pu, _ := url.Parse(us)
+	pu, _ := url.Parse(u)
 
 	for {
 		su = randStringBytesMaskImprSrc(s)
@@ -131,16 +133,19 @@ func shortener(u []byte, s int) (string, error) {
 }
 
 // dumpDbToFile dumps the kv pairs from the in memory database to file
-func dumpDbTOFile() (int, error) {
+func dumpDbTOFile(f *os.File) (int, error) {
 	i := Pool.Items()
 	dumpObj, _ := json.Marshal(i)
-	return len(i), ioutil.WriteFile(DumpFile, dumpObj, 0644)
+	if _, err := f.Write(dumpObj); err != nil {
+		return len(i), err
+	}
+	return len(i), nil
 }
 
 // loadFromFile loads kv pairs from the dumpFile json to the in memory database
 func loadFromFile() (int, error) {
 	dumpObj := make(map[string]cache.Item)
-	jsonFile, err := ioutil.ReadFile(DumpFile)
+	jsonFile, err := os.ReadFile(DumpFile)
 	if err != nil {
 		return 0, err
 	}
@@ -154,7 +159,7 @@ func loadFromFile() (int, error) {
 	return len(dumpObj), err
 }
 
-// itemsFromPost loads kv pairs from a json POST to the in memory database
+// loadFromJSON loads kv pairs from a json to the in memory database
 func loadFromJSON(j []byte) (int, error) {
 	dumpObj := make(map[string]cache.Item)
 	err := json.Unmarshal(j, &dumpObj)
@@ -195,7 +200,7 @@ func IndexHandler(t *template.Template) func(ctx *fasthttp.RequestCtx) {
 func Short(t *template.Template) func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		ctx.Response.Header.SetCanonical([]byte("Content-Type"), []byte("text/html"))
-		suf, err := shortener(ctx.FormValue("url"), URLSize)
+		suf, err := shortener(string(ctx.FormValue("url")), URLSize)
 		if err != nil {
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
 			t.Execute(ctx, body{
@@ -247,7 +252,14 @@ func Redir(t *template.Template) func(ctx *fasthttp.RequestCtx) {
 // KV db to the DumpFile file
 func ToFile(t *template.Template) func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		i, err := dumpDbTOFile()
+		f, err := os.Create(DumpFile)
+		if err != nil {
+			ctx.SetStatusCode(http.StatusInternalServerError)
+			ctx.Response.Header.SetCanonical([]byte("Content-Type"), []byte("text/html"))
+			t.Execute(ctx, internalError("Failed to create DB dump file", err))
+			return
+		}
+		i, err := dumpDbTOFile(f)
 		if err != nil {
 			ctx.SetStatusCode(http.StatusInternalServerError)
 			ctx.Response.Header.SetCanonical([]byte("Content-Type"), []byte("text/html"))

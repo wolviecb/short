@@ -6,9 +6,11 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
 	github.com/fasthttp/router v1.4.9
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/valyala/fasthttp v1.36.0
-	github.com/wolviecb/short/shortie v0.0.0-20220412102501-705312b4dffe
+	github.com/valyala/fasthttp v1.37.0
+	internal/shortie v0.0.0-00010101000000-000000000000
 )
+
+replace internal/shortie => ./internal/shortie
 
 require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
