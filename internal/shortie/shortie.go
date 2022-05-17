@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -133,16 +133,19 @@ func shortener(u string, s int) (string, error) {
 }
 
 // dumpDbToFile dumps the kv pairs from the in memory database to file
-func dumpDbTOFile() (int, error) {
+func dumpDbTOFile(f *os.File) (int, error) {
 	i := Pool.Items()
 	dumpObj, _ := json.Marshal(i)
-	return len(i), ioutil.WriteFile(DumpFile, dumpObj, 0644)
+	if _, err := f.Write(dumpObj); err != nil {
+		return len(i), err
+	}
+	return len(i), nil
 }
 
 // loadFromFile loads kv pairs from the dumpFile json to the in memory database
 func loadFromFile() (int, error) {
 	dumpObj := make(map[string]cache.Item)
-	jsonFile, err := ioutil.ReadFile(DumpFile)
+	jsonFile, err := os.ReadFile(DumpFile)
 	if err != nil {
 		return 0, err
 	}
@@ -249,7 +252,14 @@ func Redir(t *template.Template) func(ctx *fasthttp.RequestCtx) {
 // KV db to the DumpFile file
 func ToFile(t *template.Template) func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		i, err := dumpDbTOFile()
+		f, err := os.Create(DumpFile)
+		if err != nil {
+			ctx.SetStatusCode(http.StatusInternalServerError)
+			ctx.Response.Header.SetCanonical([]byte("Content-Type"), []byte("text/html"))
+			t.Execute(ctx, internalError("Failed to create DB dump file", err))
+			return
+		}
+		i, err := dumpDbTOFile(f)
 		if err != nil {
 			ctx.SetStatusCode(http.StatusInternalServerError)
 			ctx.Response.Header.SetCanonical([]byte("Content-Type"), []byte("text/html"))
