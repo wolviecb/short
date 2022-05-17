@@ -71,8 +71,8 @@ func main() {
 		version    = flag.Bool("v", false, "prints current version")
 		listenAddr string
 	)
-	flag.StringVar(&shortie.DumpFile, "urls.json", "Path to the file to dump the kv db", "urls.json")
-	flag.IntVar(&shortie.URLSize, "Define the size of the shortened String, default 10", 10, "10")
+	flag.StringVar(&shortie.DumpFile, "dumpfile", "Path to the file to dump the kv db", "urls.json")
+	flag.IntVar(&shortie.URLSize, "size", 10, "Define the size of the shortened String")
 
 	flag.Parse()
 
