@@ -113,11 +113,9 @@ func redirect(k string) (string, error) {
 // shortener receive a url, validates the url, generate a random suffix string
 // of urlSize size, checks if the suffix string is ensure on the kv database
 // and then writes the kv pair (suffix, url) to the database, returning the suffix
-func shortener(u []byte, s int) (string, error) {
+func shortener(u string, s int) (string, error) {
 	var su string
-	us := string(u)
-	if !govalidator.IsURL(string(us)) {
-		return su, fmt.Errorf("Bad Request")
+	if !govalidator.IsURL(string(u)) {
 		return su, ErrBadRequest
 	}
 	pu, _ := url.Parse(u)
@@ -199,7 +197,7 @@ func IndexHandler(t *template.Template) func(ctx *fasthttp.RequestCtx) {
 func Short(t *template.Template) func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		ctx.Response.Header.SetCanonical([]byte("Content-Type"), []byte("text/html"))
-		suf, err := shortener(ctx.FormValue("url"), URLSize)
+		suf, err := shortener(string(ctx.FormValue("url")), URLSize)
 		if err != nil {
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
 			t.Execute(ctx, body{
