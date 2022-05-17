@@ -57,6 +57,9 @@ var (
 	Path string = ""
 	// DumpFile is the file to dump URL data
 	DumpFile string = "urls.json"
+	// Error Definitions
+	ErrBadRequest = fmt.Errorf("bad request")
+	ErrNotFound   = fmt.Errorf("not found")
 )
 
 // get executes the GET command
@@ -98,7 +101,7 @@ func redirect(k string) (string, error) {
 	key := rgx.FindString(k)
 	key, status := get(key)
 	if !status {
-		return "", fmt.Errorf("Not Found")
+		return "", ErrNotFound
 	}
 	u, _ := url.Parse(key)
 	if u.Scheme == "" {
@@ -115,8 +118,9 @@ func shortener(u []byte, s int) (string, error) {
 	us := string(u)
 	if !govalidator.IsURL(string(us)) {
 		return su, fmt.Errorf("Bad Request")
+		return su, ErrBadRequest
 	}
-	pu, _ := url.Parse(us)
+	pu, _ := url.Parse(u)
 
 	for {
 		su = randStringBytesMaskImprSrc(s)
