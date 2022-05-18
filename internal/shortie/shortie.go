@@ -214,7 +214,12 @@ func Short(t *template.Template) func(ctx *fasthttp.RequestCtx) {
 			})
 			return
 		}
-		ru, _ := url.Parse(fmt.Sprintf("%s://%s:%v/%s%s", Proto, Domain, Port, Path, suf))
+		var ru *url.URL
+		if (Proto == "http" && Port == 80) || (Proto == "https" && Port == 443) {
+			ru, _ = url.Parse(fmt.Sprintf("%s://%s/%s%s", Proto, Domain, Path, suf))
+		} else {
+			ru, _ = url.Parse(fmt.Sprintf("%s://%s:%v/%s%s", Proto, Domain, Port, Path, suf))
+		}
 		t.Execute(ctx, body{
 			IsLink: true,
 			Line1:  ru.String(),
