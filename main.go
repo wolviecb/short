@@ -71,8 +71,9 @@ func main() {
 		version    = flag.Bool("v", false, "prints current version")
 		listenAddr string
 	)
-	flag.StringVar(&shortie.DumpFile, "dumpfile", "Path to the file to dump the kv db", "urls.json")
+	flag.StringVar(&shortie.DumpFile, "dumpFile", "Path to the file to dump the kv db", "urls.json")
 	flag.IntVar(&shortie.URLSize, "size", 10, "Define the size of the shortened String")
+	flag.IntVar(&shortie.Port, "urlPort", 443, "Port to use for building URLs")
 
 	flag.Parse()
 
@@ -81,10 +82,14 @@ func main() {
 		os.Exit(0)
 	}
 
+	if shortie.Port > 65535 || shortie.Port < 1 {
+		log.Fatalln("Invalid port number")
+	}
+
 	if *port > 65535 || *port < 1 {
 		log.Fatalln("Invalid port number")
 	}
-	shortie.Port = *port
+
 	if *path != "" && !strings.HasSuffix(*path, "/") {
 		*path = *path + "/"
 	}
