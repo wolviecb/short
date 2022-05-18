@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"html/template"
 	"log"
-	"math/rand"
 	"net"
 	"os"
 	"strings"
@@ -29,8 +28,6 @@ const (
 )
 
 var (
-	// tiny entropy pool
-	src = rand.NewSource(time.Now().UnixNano())
 	out = log.New(os.Stdout, "", log.LstdFlags|log.Lmicroseconds)
 )
 
