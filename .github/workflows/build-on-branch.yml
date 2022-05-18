@@ -11,11 +11,11 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build
-      run: docker build . -t tandrade/short:$(echo $([[ $(git rev-parse --abbrev-ref HEAD) == master ]] && echo latest || echo latest-modsec))
+      run: docker build . -t tandrade/short:latest
     - name: Login
       uses: docker/login-action@v1.10.0
       with:
           username: tandrade
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
     - name: Push
-      run: docker push tandrade/short:$(echo $([[ $(git rev-parse --abbrev-ref HEAD) == master ]] && echo latest || echo latest-modsec))
+      run: docker push tandrade/short:latest
