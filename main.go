@@ -64,7 +64,7 @@ func main() {
 		addr       = flag.String("addr", "localhost", "Address to listen for connections")
 		domain     = flag.String("domain", "localhost", "Domain to write to the URLs")
 		path       = flag.String("path", "", "Path to the base URL (https://localhost/PATH/...")
-		http       = flag.Bool("http", true, "proto to the base URL (HTTPS://localhost/path/... no real https here just to set the url (for like a proxy offloading https")
+		http       = flag.Bool("http", false, "proto to the base URL (HTTPS://localhost/path/... no real https here just to set the url (for like a proxy offloading https")
 		port       = flag.Int("port", 8080, "Port to listen for connections")
 		exp        = flag.Int("exp", 240, "Default expiration time in hours, default 240")
 		cleanup    = flag.Int("cleanup", 1, "Cleanup interval in hours, default 1")

@@ -2,7 +2,7 @@ FROM golang:1.18 as builder
 
 ENV CGO_ENABLED=0
 
-ADD main.go go.* /go/src/short/
+COPY . /go/src/short/
 
 WORKDIR /go/src/short
 
