@@ -126,5 +126,5 @@ func main() {
 	r.POST("/v1/fromPost", shortie.FromPost(t))
 
 	log.Printf("Domain: %s, URL Proto: %s, Listen Address: %s\n", shortie.Domain, shortie.Proto, listenAddr)
-	log.Fatal(fasthttp.ListenAndServe(":8080", logger(r.Handler)))
+	log.Fatal(fasthttp.ListenAndServe(listenAddr, logger(r.Handler)))
 }
