@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
@@ -54,6 +55,33 @@ func getHTTP(ctx *fasthttp.RequestCtx) string {
 		return "HTTP/1.1"
 	}
 	return "HTTP/1.0"
+}
+
+func healthz() func(ctx *fasthttp.RequestCtx) {
+	r := struct {
+		Status     string `json:"status"`
+		StatusCode int    `json:"status_code"`
+	}{
+		Status:     "ok",
+		StatusCode: 200,
+	}
+
+	t := time.Now()
+	shortie.Pool.Set("status", t.Unix(), -1)
+	s, f := shortie.Pool.Get("status")
+
+	if !f || s != t.Unix() {
+		r.Status = "error"
+		r.StatusCode = 500
+	}
+
+	return func(ctx *fasthttp.RequestCtx) {
+		ctx.Response.Header.SetCanonical([]byte("Content-Type"), []byte("application/json"))
+		ctx.Response.SetStatusCode(r.StatusCode)
+		if err := json.NewEncoder(ctx).Encode(r); err != nil {
+			ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
+		}
+	}
 }
 
 func main() {
@@ -121,6 +149,7 @@ func main() {
 	r.GET("/", shortie.IndexHandler(t))
 	r.POST("/", shortie.Short(t))
 	r.GET("/{key}", shortie.Redir(t))
+	r.GET("/healthz", healthz())
 	r.GET("/v1/toFile", shortie.ToFile(t))
 	r.GET("/v1/fromFile", shortie.FromFile(t))
 	r.GET("/v1/count", func(ctx *fasthttp.RequestCtx) { fmt.Fprintf(ctx, "%v", shortie.Pool.ItemCount()) })
