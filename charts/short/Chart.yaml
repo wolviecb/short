@@ -1,0 +1,6 @@
+apiVersion: v2
+name: short
+description: Short is a very simple url shortener build in golang, the main focus is speed, not data is persisted, but can be dumped and restored.
+type: application
+version: 0.0.1
+appVersion: "v1.4.2"
