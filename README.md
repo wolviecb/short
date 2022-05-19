@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://git.thebarrens.nu/wolvie/short/blob/master/LICENSE)
 
-Short is a very simple url shortener build in golang using gorilla/mux for url routing and go-cache for storring URLs, the main focus is speed, not data is persisted, but can be dumped and restored.
+Short is a very simple url shortener build in golang, the main focus is speed, not data is persisted, but can be dumped and restored.
 
 ## Syntax is
 
