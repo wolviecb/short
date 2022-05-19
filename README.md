@@ -9,20 +9,26 @@ Short is a very simple url shortener build in golang using gorilla/mux for url r
 ```shell
 Usage of short:
   -addr string
-      Address to listen for connections (default "localhost")
+        Address to listen for connections (default "localhost")
+  -cleanup int
+        Cleanup interval in hours, default 1 (default 1)
   -domain string
-      Domain to write to the URLs (default "localhost")
-  -dump string
-      Path to the file to dump the kv db (default "urls.json")
+        Domain to write to the URLs (default "localhost")
+  -dumpFile string
+        urls.json (default "Path to the file to dump the kv db")
+  -exp int
+        Default expiration time in hours, default 240 (default 240)
+  -http
+        proto to the base URL (HTTPS://localhost/path/... no real https here just to set the url (for like a proxy offloading https
   -path string
-      Path to the base URL (https://localhost/PATH/... remember to append a / at the end
-  -port string
-      Port to listen for connections (default "8080")
-  -proto string
-      proto to the base URL (HTTPS://localhost/path/... no real https here just to set the url (for like a proxy offloading https (default "https")
-  -urlsize int
-      Define the size of the shortened String, default 10 (default 10)
-  -v  prints current version
+        Path to the base URL (https://localhost/PATH/...
+  -port int
+        Port to listen for connections (default 8080)
+  -size int
+        Define the size of the shortened String (default 10)
+  -urlPort int
+        Port to use for building URLs (default 443)
+  -v    prints current version
 ```
 
 Includes a Dockerfile to for a standalone docker image.
