@@ -184,7 +184,7 @@ func internalError(msg string, err error) body {
 	}
 }
 
-// IndexHandler return a fasthttp.RequestHandler function that genetares the index page
+// IndexHandler return a fasthttp.RequestHandler function that generates the index page
 func IndexHandler(t *template.Template) func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		ctx.Response.Header.SetCanonical([]byte("Content-Type"), []byte("text/html"))
@@ -196,7 +196,7 @@ func IndexHandler(t *template.Template) func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-// Short return a fasthttp.RequestHandler function that genetares the shortener page
+// Short return a fasthttp.RequestHandler function that generates the shortener page
 func Short(t *template.Template) func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		ctx.Response.Header.SetCanonical([]byte("Content-Type"), []byte("text/html"))
@@ -227,7 +227,7 @@ func Short(t *template.Template) func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-// Redir return a fasthttp.RequestHandler function that genetares the shortener redirect page
+// Redir return a fasthttp.RequestHandler function that generates the shortener redirect page
 func Redir(t *template.Template) func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		ctx.Response.Header.SetCanonical([]byte("Content-Type"), []byte("text/html"))
