@@ -13,7 +13,7 @@ jobs:
     - name: Build
       run: docker build . -t tandrade/short:${GITHUB_REF/refs\/tags\//}
     - name: Login
-      uses: docker/login-action@v1.14.1
+      uses: docker/login-action@v2.0.0
       with:
           username: tandrade
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
