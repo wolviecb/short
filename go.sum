@@ -6,6 +6,8 @@ github.com/fasthttp/router v1.4.9 h1:8s1HEqP+GvsC2B8vPdLAPHJegs4s28z7UsraPuHM1K8
 github.com/fasthttp/router v1.4.9/go.mod h1:oWPrQCi9QOrzxKC+rZuliS1+JhYj2bpR01J6T8vUDUQ=
 github.com/fasthttp/router v1.4.12 h1:QEgK+UKARaC1bAzJgnIhdUMay6nwp+YFq6VGPlyKN1o=
 github.com/fasthttp/router v1.4.12/go.mod h1:41Qdc4Z4T2pWVVtATHCnoUnOtxdBoeKEYJTXhHwbxCQ=
+github.com/fasthttp/router v1.4.13 h1:42M7+7tNO6clb5seb4HhXlBIX1lnNv8DLhiT6jUv75A=
+github.com/fasthttp/router v1.4.13/go.mod h1:mVhHMaSQA2Hi1HeuL/ZMuZpsZWk5bya75EpaDr3fO7E=
 github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/klauspost/compress v1.15.0/go.mod h1:/3/Vjq9QcHkK5uEr5lBEmyoZ1iFhe47etQ6QUkpK6sk=
 github.com/klauspost/compress v1.15.4 h1:1kn4/7MepF/CHmYub99/nNX8az0IJjfSOU/jbnTVfqQ=
