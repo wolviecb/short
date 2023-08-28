@@ -6,7 +6,7 @@ require (
 	github.com/asaskevich/govalidator/v11 v11.0.1
 	github.com/fasthttp/router v1.4.13
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/valyala/fasthttp v1.41.0
+	github.com/valyala/fasthttp v1.49.0
 	internal/shortie v0.0.0-00010101000000-000000000000
 )
 
