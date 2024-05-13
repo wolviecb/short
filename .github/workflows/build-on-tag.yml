@@ -1,7 +1,7 @@
 name: Build tag
 
 on:
-  create:
+  push:
     tags:
       - 'v*'
 
@@ -9,13 +9,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Build
-      run: docker build . -t tandrade/short:${GITHUB_REF/refs\/tags\//}
+      run: docker build . -t wolviecb/short:${GITHUB_REF/refs\/tags\//}
     - name: Login
-      uses: docker/login-action@v2.1.0
+      uses: docker/login-action@v3
       with:
-          username: tandrade
+          username: wolviecb
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
     - name: Push
-      run: docker push tandrade/short:${GITHUB_REF/refs\/tags\//}
+      run: docker push wolviecb/short:${GITHUB_REF/refs\/tags\//}
