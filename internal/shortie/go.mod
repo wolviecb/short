@@ -7,7 +7,7 @@ toolchain go1.25.0
 require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/valyala/fasthttp v1.64.0
+	github.com/valyala/fasthttp v1.65.0
 )
 
 require (
