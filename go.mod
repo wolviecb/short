@@ -1,6 +1,6 @@
 module github.com/wolviecb/short
 
-go 1.23.0
+go 1.24.0
 
 toolchain go1.25.2
 
@@ -8,7 +8,7 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2
 	github.com/fasthttp/router v1.5.4
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/valyala/fasthttp v1.65.0
+	github.com/valyala/fasthttp v1.67.0
 	internal/shortie v0.0.0-00010101000000-000000000000
 )
 
