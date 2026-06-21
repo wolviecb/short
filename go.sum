@@ -6,6 +6,7 @@ github.com/andybalholm/brotli v1.2.0 h1:ukwgCxwYrmACq68yiUqwIWnGY0cTPox/M94sVwTo
 github.com/andybalholm/brotli v1.2.0/go.mod h1:rzTDkvFWvIrjDXZHkuS16NPggd91W3kUSvPlQ1pLaKY=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 h1:DklsrG3dyBCFEj5IhUbnKptjxatkF07cF2ak3yi77so=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2/go.mod h1:WaHUgvxTVq04UNunO+XhnAqY/wQc+bxr74GqbsZ/Jqw=
+github.com/asaskevich/govalidator/v12 v12.0.0/go.mod h1:Rly4eyDYE9One4VdXKFelwC93WbOMTTjl5gSwwP2F8o=
 github.com/fasthttp/router v1.5.0 h1:3Qbbo27HAPzwbpRzgiV5V9+2faPkPt3eNuRaDV6LYDA=
 github.com/fasthttp/router v1.5.0/go.mod h1:FddcKNXFZg1imHcy+uKB0oo/o6yE9zD3wNguqlhWDak=
 github.com/fasthttp/router v1.5.1 h1:uViy8UYYhm5npJSKEZ4b/ozM//NGzVCfJbh6VJ0VKr8=
