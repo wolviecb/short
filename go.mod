@@ -16,7 +16,7 @@ replace internal/shortie => ./internal/shortie
 
 require (
 	github.com/andybalholm/brotli v1.2.0 // indirect
-	github.com/klauspost/compress v1.18.1 // indirect
+	github.com/klauspost/compress v1.18.7 // indirect
 	github.com/savsgio/gotils v0.0.0-20240704082632-aef3928b8a38 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 )
